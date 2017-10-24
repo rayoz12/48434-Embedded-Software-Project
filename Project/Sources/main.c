@@ -80,6 +80,11 @@ OS_THREAD_STACK(FTM0ThreadStack, THREAD_STACK_SIZE);
 OS_THREAD_STACK(LPTThreadStack, THREAD_STACK_SIZE);
 OS_THREAD_STACK(TransmitThreadStack, THREAD_STACK_SIZE);
 OS_THREAD_STACK(ReceiveThreadStack, THREAD_STACK_SIZE);
+//project threads
+//Measurements.c
+OS_THREAD_STACK(CalculateThreadStack, THREAD_STACK_SIZE);
+
+#define ANALOG_SAMPLE_SIZE 16
 
 /*!
  * Param 3 of CMD program byte which tells tower to erase sector
@@ -206,6 +211,9 @@ typedef struct AnalogThreadData
 {
   OS_ECB* semaphore;
   uint8_t channelNb;
+  uint8_t samples[ANALOG_SAMPLE_SIZE];
+  uint8_t sampleNb;
+  OS_ECB* readyCalc;
 } TAnalogThreadData;
 
 /*! @brief Analog thread configuration data
@@ -215,11 +223,15 @@ static TAnalogThreadData AnalogThreadData[NB_ANALOG_CHANNELS] =
 {
   {
     .semaphore = NULL,
-    .channelNb = 0
+    .channelNb = 0,
+    .sampleNb = 0
+    .readyCalc = NULL,
   },
   {
     .semaphore = NULL,
-    .channelNb = 1
+    .channelNb = 1,
+    .sampleNb = 0
+    .readyCalc = NULL,
   }
 };
 
@@ -267,7 +279,10 @@ void TowerInit(void *pData)
 
   // Generate the global analog semaphores
   for (uint8_t analogNb = 0; analogNb < NB_ANALOG_CHANNELS; analogNb++)
+  {
     AnalogThreadData[analogNb].semaphore = OS_SemaphoreCreate(0);
+    AnalogThreadData[analogNb].readyCalc = OS_SemaphoreCreate(0);
+  }
 
   // Initialise the low power timer to tick every 10 ms
   LPTMRInit(1);
@@ -299,10 +314,9 @@ void AnalogLoopbackThread(void* pData)
 
     (void)OS_SemaphoreWait(analogData->semaphore, 0);
     // Get analog sample
-    Analog_Get(analogData->channelNb, &analogInputValue);
-
-
-
+    Analog_Get(analogData->channelNb, &analogData->samples[analogData->sampleNb++]);
+    if (analogData->sampleNb >= 16)
+      OS_SemaphoreSignal(analogData->readyCalc);
 
     // Put analog sample--have to add input circuitry conditioning
     Analog_Put(analogData->channelNb, analogInputValue);
@@ -326,11 +340,12 @@ int main(void)
   //create main thread, always must be last priority so that main doesn't hog it.
   error = OS_ThreadCreate(ReceiveThread, NULL, &ReceiveThreadStack[THREAD_STACK_SIZE - 1], 1); //create Receive UART thread thread
   error = OS_ThreadCreate(TransmitThread, NULL, &TransmitThreadStack[THREAD_STACK_SIZE - 1], 2); //create transmit UART thread
-  error = OS_ThreadCreate(MainThread, NULL, &MainThreadStack[THREAD_STACK_SIZE - 1], 5);
-  error = OS_ThreadCreate(LPTCallback, NULL, &LPTThreadStack[THREAD_STACK_SIZE - 1], 6); //create FTM0 thread
-  error = OS_ThreadCreate(FTMCallback0, NULL, &FTM0ThreadStack[THREAD_STACK_SIZE - 1], 7); //create FTM0 thread
-  error = OS_ThreadCreate(PITCallback, NULL, &PITThreadStack[THREAD_STACK_SIZE - 1], 8); //create PIT thread
-  error = OS_ThreadCreate(RTCThread, NULL, &RTCThreadStack[THREAD_STACK_SIZE - 1], 9); //create RTC thread
+  error = OS_ThreadCreate(calculateBasic, NULL, &CalculateThreadStack[THREAD_STACK_SIZE - 1], 5); //create calculate  thread
+  error = OS_ThreadCreate(MainThread, NULL, &MainThreadStack[THREAD_STACK_SIZE - 1], 6);
+  error = OS_ThreadCreate(LPTCallback, NULL, &LPTThreadStack[THREAD_STACK_SIZE - 1], 7); //create FTM0 thread
+  error = OS_ThreadCreate(FTMCallback0, NULL, &FTM0ThreadStack[THREAD_STACK_SIZE - 1], 8); //create FTM0 thread
+  error = OS_ThreadCreate(PITCallback, NULL, &PITThreadStack[THREAD_STACK_SIZE - 1], 9); //create PIT thread
+  error = OS_ThreadCreate(RTCThread, NULL, &RTCThreadStack[THREAD_STACK_SIZE - 1], 10); //create RTC thread
 
   // Create threads for analog loopback channels
   for (uint8_t threadNb = 0; threadNb < NB_ANALOG_CHANNELS; threadNb++)
