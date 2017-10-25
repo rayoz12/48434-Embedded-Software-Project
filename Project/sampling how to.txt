@@ -1,0 +1,3 @@
+Sample the channels within the PIT ISR
+Calculate the power of that sample and place it into an array. (sliding window)
+When we get 16 samples signal the calculate thread

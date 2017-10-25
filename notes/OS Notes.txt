@@ -1,0 +1,1 @@
+All threads have to be in an infinte loop otherwise the program will crash

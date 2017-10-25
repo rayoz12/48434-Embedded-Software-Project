@@ -35,7 +35,7 @@ static void* UserArguments;
  */
 bool PIT_Init(const uint32_t moduleClk, void (*userFunction)(void*), void* userArguments)
 {
-	PITSemaphore = OS_SemaphoreCreate(0);
+//	PITSemaphore = OS_SemaphoreCreate(0);
 	ModuleClk = moduleClk;
 	//calculate the period of the clock from frequency, using 1e9 as we are using nanoseconds instead of seconds.
 	ClkPeriod = 1e9 / moduleClk;
@@ -105,9 +105,9 @@ void __attribute__ ((interrupt)) PIT_ISR(void)
 	OS_ISREnter();
 	//clear interrupt flag
 	PIT_TFLG0 |= PIT_TFLG_TIF_MASK;
-//	if (UserFunction)
-//		(*UserFunction)(UserArguments);
-	OS_SemaphoreSignal(PITSemaphore);
+	if (UserFunction)
+		(*UserFunction)(UserArguments);
+//	OS_SemaphoreSignal(PITSemaphore);
 	OS_ISRExit();
 }
 

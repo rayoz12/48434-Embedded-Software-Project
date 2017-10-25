@@ -28,6 +28,9 @@
 
 // CPU module - contains low level hardware initialization routines
 #include "Cpu.h"
+
+#include "main.h"
+
 #include "UART.h"
 #include "packet.h"
 #include "Flash.h"
@@ -40,10 +43,7 @@
 #include "RTC.h"
 #include "FTM.h"
 #include "PIT.h"
-#include "LPT.h"
 #include "Measurements.h"
-
-
 
 // Simple OS
 #include "OS.h"
@@ -51,60 +51,20 @@
 // Analog functions
 #include "analog.h"
 
-typedef enum
-{
-  CMD_STARTUP = 0x04,      //Startup command
-  CMD_VERSION = 0x09,      //Tower version command
-  CMD_TNUMBER = 0x0B,      //command byte for tower number
-  CMD_TMODE = 0x0D,        //command byte for tower mode
-  CMD_PROGRAM_BYTE = 0x07, //Program byte into flash
-  CMD_READ_BYTE = 0x08,    //Read byte from Flash
-  CMD_TIME = 0x0C,         //Command byte for time
-  CMD_ANALOG_INPUT = 0x50, //Command byte for the ADC input value
-} CMD;
-
-// ----------------------------------------
-// Thread set up
-// ----------------------------------------
-// Arbitrary thread stack size - big enough for stacking of interrupts and OS use.
-#define THREAD_STACK_SIZE 100
-#define NB_ANALOG_CHANNELS 2
 
 // Thread stacks
 static uint32_t AnalogThreadStacks[NB_ANALOG_CHANNELS][THREAD_STACK_SIZE] __attribute__ ((aligned(0x08)));
 OS_THREAD_STACK(TowerInitThreadStack, THREAD_STACK_SIZE); /*!< The stack for the Tower Init thread. */
 OS_THREAD_STACK(MainThreadStack, THREAD_STACK_SIZE);
 OS_THREAD_STACK(RTCThreadStack, THREAD_STACK_SIZE);
-OS_THREAD_STACK(PITThreadStack, THREAD_STACK_SIZE);
+//OS_THREAD_STACK(PITThreadStack, THREAD_STACK_SIZE);
 OS_THREAD_STACK(FTM0ThreadStack, THREAD_STACK_SIZE);
-OS_THREAD_STACK(LPTThreadStack, THREAD_STACK_SIZE);
+//OS_THREAD_STACK(LPTThreadStack, THREAD_STACK_SIZE);
 OS_THREAD_STACK(TransmitThreadStack, THREAD_STACK_SIZE);
 OS_THREAD_STACK(ReceiveThreadStack, THREAD_STACK_SIZE);
 //project threads
 //Measurements.c
 OS_THREAD_STACK(CalculateThreadStack, THREAD_STACK_SIZE);
-
-#define ANALOG_SAMPLE_SIZE 16
-
-/*!
- * Param 3 of CMD program byte which tells tower to erase sector
- */
-static const uint8_t ERASE_SECTOR = 0x08; //Param 3 of CMD program byte which tells tower to erase sector
-
-static const uint32_t BAUDRATE = 115200;
-static const int DEFAULT_TOWER_NUMBER = 1145;
-static const int DEFAULT_TOWER_MODE = 1;
-
-const static int MAJ_VER = 5;
-const static int MIN_VER = 34;
-
-//PIT light up every 500 ms
-const static uint32_t PIT_INTERVAL = 500 * 1000000; //500ms to nanoseconds;
-
-
-//ASK IF BETWEEN BUILDS THE FLASH IS ERASED
-uint16union_t *TowerNumber; //FML Always uppercase first letter for globals
-uint16union_t *TowerMode;
 
 /*! @brief The callback from FTM, turns off blue LED.
  *
@@ -183,7 +143,18 @@ void RTCThread(void* arg);
  */
 void PITCallback(void* arg);
 
-void LPTCallback(void *arg);
+void MainThread(void *pData);
+
+void AnalogLoopback(void* pData);
+
+void InputConditioning(int8_t *voltage);
+
+// ----------------------------------------
+// Thread priorities
+// 0 = highest priority
+// ----------------------------------------
+const uint8_t ANALOG_THREAD_PRIORITIES[NB_ANALOG_CHANNELS] = {3, 4};
+
 
 const static TFTMChannel OneSecTimer = {
   0,//channel number
@@ -194,46 +165,44 @@ const static TFTMChannel OneSecTimer = {
   0
 };
 
-void MainThread(void *pData);
 
-void AnalogLoopbackThread(void* pData);
-
-// ----------------------------------------
-// Thread priorities
-// 0 = highest priority
-// ----------------------------------------
-const uint8_t ANALOG_THREAD_PRIORITIES[NB_ANALOG_CHANNELS] = {3, 4};
-
-/*! @brief Data structure used to pass Analog configuration to a user thread
+/*! @brief Samples a value on an ADC channel and sends it to the corresponding DAC channel.
  *
  */
-typedef struct AnalogThreadData
+void AnalogLoopback(void* args)
 {
-  OS_ECB* semaphore;
-  uint8_t channelNb;
-  uint8_t samples[ANALOG_SAMPLE_SIZE];
-  uint8_t sampleNb;
-  OS_ECB* readyCalc;
-} TAnalogThreadData;
+  int16_t analogVoltageInputValue;
+  int16_t analogCurrentInputValue;
 
-/*! @brief Analog thread configuration data
- *
- */
-static TAnalogThreadData AnalogThreadData[NB_ANALOG_CHANNELS] =
-{
+  // Get analog sample
+  Analog_Get(ANALOG_VOLTAGE_CHANNEL, &analogVoltageInputValue);
+  Analog_Get(ANALOG_CURRENT_CHANNEL, &analogCurrentInputValue);
+
+  *Samples.PutPtr = analogVoltageInputValue * analogCurrentInputValue;
+//  Samples.PowerBuffer
+  //checks whether the value array of a channel is full and if not, increment to next space
+  if(Samples.PutPtr == &Samples.PowerBuffer[POWER_BUFFER_SIZE - 1])
+    Samples.PutPtr = Samples.PowerBuffer;
+  else
+    Samples.PutPtr++;
+
+  Samples.SamplesNb++;
+
+  if (Samples.SamplesNb >= 16)
   {
-    .semaphore = NULL,
-    .channelNb = 0,
-    .sampleNb = 0
-    .readyCalc = NULL,
-  },
-  {
-    .semaphore = NULL,
-    .channelNb = 1,
-    .sampleNb = 0
-    .readyCalc = NULL,
+    OS_SemaphoreSignal(CalculateSemaphore); //signal the calculate thread
+    Samples.SamplesNb = 0;
   }
-};
+  // Put analog sample--have to add input circuitry conditioning
+  Analog_Put(ANALOG_VOLTAGE_CHANNEL, analogVoltageInputValue);
+  Analog_Put(ANALOG_CURRENT_CHANNEL, analogCurrentInputValue);
+}
+
+void InputConditioning(int8_t *voltage)
+{
+  *voltage = *voltage / 100;
+}
+
 
 /*! @brief Initialises the tower by setting up the Baud rate, Flash, LED's and the tower number
  *
@@ -254,9 +223,11 @@ void TowerInit(void *pData)
     bool FTMLEDSetSuccess = FTM_Set(&OneSecTimer);
     bool PITSuccess = PIT_Init(CPU_BUS_CLK_HZ, &PITCallback, 0);
     bool AnalogSuccess = Analog_Init(CPU_BUS_CLK_HZ);//added by john <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    bool MeasurementsSuccess = Measurements_Init();
 
     success = packetSuccess && flashSuccess && LEDSuccess && RTCSuccess
-              && FTMSuccess && FTMLEDSetSuccess && PITSuccess && AnalogSuccess;
+              && FTMSuccess && FTMLEDSetSuccess && PITSuccess && AnalogSuccess
+              && MeasurementsSuccess;
   } while (!success);
 
   //allocate the number and mode as the first 2 16bit spots in memory.
@@ -277,15 +248,8 @@ void TowerInit(void *pData)
     }
   }
 
-  // Generate the global analog semaphores
-  for (uint8_t analogNb = 0; analogNb < NB_ANALOG_CHANNELS; analogNb++)
-  {
-    AnalogThreadData[analogNb].semaphore = OS_SemaphoreCreate(0);
-    AnalogThreadData[analogNb].readyCalc = OS_SemaphoreCreate(0);
-  }
-
   // Initialise the low power timer to tick every 10 ms
-  LPTMRInit(1);
+//  LPTMRInit(ANALOG_SAMPLE_INTERVAL);
 
   //Turn on LED to show that we have initialised successfully
   LEDs_On(LED_GREEN);
@@ -298,29 +262,6 @@ void TowerInit(void *pData)
 
   // We only do this once - therefore delete this thread
   OS_ThreadDelete(OS_PRIORITY_SELF);
-}
-
-/*! @brief Samples a value on an ADC channel and sends it to the corresponding DAC channel.
- *
- */
-void AnalogLoopbackThread(void* pData)
-{
-  // Make the code easier to read by giving a name to the typecast'ed pointer
-  #define analogData ((TAnalogThreadData*)pData)
-
-  for (;;)
-  {
-    int16_t analogInputValue;
-
-    (void)OS_SemaphoreWait(analogData->semaphore, 0);
-    // Get analog sample
-    Analog_Get(analogData->channelNb, &analogData->samples[analogData->sampleNb++]);
-    if (analogData->sampleNb >= 16)
-      OS_SemaphoreSignal(analogData->readyCalc);
-
-    // Put analog sample--have to add input circuitry conditioning
-    Analog_Put(analogData->channelNb, analogInputValue);
-  }
 }
 
 /*lint -save  -e970 Disable MISRA rule (6.3) checking. */
@@ -342,19 +283,10 @@ int main(void)
   error = OS_ThreadCreate(TransmitThread, NULL, &TransmitThreadStack[THREAD_STACK_SIZE - 1], 2); //create transmit UART thread
   error = OS_ThreadCreate(calculateBasic, NULL, &CalculateThreadStack[THREAD_STACK_SIZE - 1], 5); //create calculate  thread
   error = OS_ThreadCreate(MainThread, NULL, &MainThreadStack[THREAD_STACK_SIZE - 1], 6);
-  error = OS_ThreadCreate(LPTCallback, NULL, &LPTThreadStack[THREAD_STACK_SIZE - 1], 7); //create FTM0 thread
-  error = OS_ThreadCreate(FTMCallback0, NULL, &FTM0ThreadStack[THREAD_STACK_SIZE - 1], 8); //create FTM0 thread
-  error = OS_ThreadCreate(PITCallback, NULL, &PITThreadStack[THREAD_STACK_SIZE - 1], 9); //create PIT thread
-  error = OS_ThreadCreate(RTCThread, NULL, &RTCThreadStack[THREAD_STACK_SIZE - 1], 10); //create RTC thread
-
-  // Create threads for analog loopback channels
-  for (uint8_t threadNb = 0; threadNb < NB_ANALOG_CHANNELS; threadNb++)
-  {
-    error = OS_ThreadCreate(AnalogLoopbackThread,
-                            &AnalogThreadData[threadNb],
-                            &AnalogThreadStacks[threadNb][THREAD_STACK_SIZE - 1],
-                            ANALOG_THREAD_PRIORITIES[threadNb]);
-  }
+//  error = OS_ThreadCreate(LPTCallback, NULL, &LPTThreadStack[THREAD_STACK_SIZE - 1], 7); //create FTM0 thread
+  error = OS_ThreadCreate(FTMCallback0, NULL, &FTM0ThreadStack[THREAD_STACK_SIZE - 1], 7); //create FTM0 thread
+//  error = OS_ThreadCreate(PITCallback, NULL, &PITThreadStack[THREAD_STACK_SIZE - 1], 9); //create PIT thread
+  error = OS_ThreadCreate(RTCThread, NULL, &RTCThreadStack[THREAD_STACK_SIZE - 1], 8); //create RTC thread
 
   // Start multithreading - never returns!
   OS_Start();
@@ -611,21 +543,7 @@ void FTMCallback0(void* args)
 
 void PITCallback(void* arg)
 {
-  for (;;) {
-    OS_SemaphoreWait(PITSemaphore, 0);
-    //LEDs_Toggle(LED_GREEN);
-  }
-}
-
-void LPTCallback(void* arg)
-{
-  for (;;) {
-    OS_SemaphoreWait(LPTSemaphore, 0);
-
-    // Signal the analog channels to take a sample
-    for (uint8_t analogNb = 0; analogNb < NB_ANALOG_CHANNELS; analogNb++)
-      (void)OS_SemaphoreSignal(AnalogThreadData[analogNb].semaphore);
-  }
+  AnalogLoopback(arg);
 }
 
 /*!
