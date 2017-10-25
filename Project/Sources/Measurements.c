@@ -29,26 +29,6 @@ bool Measurements_Init()
 
 void calculateBasic(void *pData)
 {
-  // Make the code easier to read by giving a name to the typecast'ed pointer
-//#define analogData ((TAnalogThreadData*)pData)
-//  TAnalogThreadData analogDataArray[ANALOG_NB_INPUTS];
-//  int powerSum = 0;
-//  for (;;)
-//  {
-//    OS_SemaphoreWait(semaphoreData.readyCalc, 0);
-//    //1st channel is voltage, 2nd is current
-//    //perform input circuitry conditioning, voltage / 100, leave current
-//    for (int i=0; i < ANALOG_SAMPLE_SIZE; i++)
-//      analogDataArray[0].samples[i] = analogDataArray[0].samples[i] / 100;
-//
-//    for (int i=0; i < ANALOG_SAMPLE_SIZE; i++)
-//      powerSum += analogDataArray[0].samples[i] * analogDataArray[1].samples[i];
-//
-//    double averagePower = powerSum / ANALOG_SAMPLE_SIZE;
-//    double periodEnergy = 0;
-//    for (int i=0; i < ANALOG_SAMPLE_SIZE; i++)
-//      periodEnergy += (analogDataArray[0].samples[i] * analogDataArray[1].samples[i]) * ANALOG_SAMPLE_INTERVAL;
-//
 //    Packet_Put('d', (uint8_t) averagePower, (uint8_t) periodEnergy, analogDataArray[0].samples[8]);
   for (;;)
   {
@@ -60,11 +40,10 @@ void calculateBasic(void *pData)
 
     double averagePower = powerSum / ANALOG_SAMPLE_SIZE;
 
-    for (int i=0; i < ANALOG_SAMPLE_SIZE; i++)
-      periodEnergy += Samples.PowerBuffer[i] * ANALOG_SAMPLE_INTERVAL;
+    periodEnergy = powerSum * ANALOG_SAMPLE_INTERVAL;
 
 
-//    Packet_Put('d', (uint8_t) averagePower, (uint8_t) periodEnergy,  Samples.PowerBuffer[8]);
+    Packet_Put('d', (uint8_t) averagePower, (uint8_t) periodEnergy,  Samples.PowerBuffer[8]);
   }
 
   //calculate instantaneous power then place in buffer for average after 16 samples

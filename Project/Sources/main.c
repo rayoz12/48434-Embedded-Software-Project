@@ -28,6 +28,7 @@
 
 // CPU module - contains low level hardware initialization routines
 #include "Cpu.h"
+#include <math.h>
 
 #include "main.h"
 
@@ -147,7 +148,7 @@ void MainThread(void *pData);
 
 void AnalogLoopback(void* pData);
 
-void InputConditioning(int8_t *voltage);
+float InputConditioning(int16_t voltage);
 
 // ----------------------------------------
 // Thread priorities
@@ -172,13 +173,14 @@ const static TFTMChannel OneSecTimer = {
 void AnalogLoopback(void* args)
 {
   int16_t analogVoltageInputValue;
+  float conditionedInput;
   int16_t analogCurrentInputValue;
 
   // Get analog sample
   Analog_Get(ANALOG_VOLTAGE_CHANNEL, &analogVoltageInputValue);
   Analog_Get(ANALOG_CURRENT_CHANNEL, &analogCurrentInputValue);
-
-  *Samples.PutPtr = analogVoltageInputValue * analogCurrentInputValue;
+  conditionedInput = InputConditioning(analogVoltageInputValue);
+  *Samples.PutPtr = fabs(conditionedInput * analogCurrentInputValue);
 //  Samples.PowerBuffer
   //checks whether the value array of a channel is full and if not, increment to next space
   if(Samples.PutPtr == &Samples.PowerBuffer[POWER_BUFFER_SIZE - 1])
@@ -194,13 +196,14 @@ void AnalogLoopback(void* args)
     Samples.SamplesNb = 0;
   }
   // Put analog sample--have to add input circuitry conditioning
-  Analog_Put(ANALOG_VOLTAGE_CHANNEL, analogVoltageInputValue);
+  Analog_Put(ANALOG_VOLTAGE_CHANNEL, (int16_t) conditionedInput);
   Analog_Put(ANALOG_CURRENT_CHANNEL, analogCurrentInputValue);
 }
 
-void InputConditioning(int8_t *voltage)
+float InputConditioning(int16_t voltage)
 {
-  *voltage = *voltage / 100;
+  float conditionedVoltage = (float)voltage / (float)100;
+  return conditionedVoltage;
 }
 
 

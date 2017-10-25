@@ -1,0 +1,6 @@
+Getting Tarrifs from Flash - have to store in fixed point
+https://stackoverflow.com/questions/3402702/converting-floating-point-to-32-bit-fixed-point-in-java
+https://stackoverflow.com/questions/10067510/fixed-point-arithmetic-in-c-programming
+
+
+convert the sampling interval to be defined at runtime rather than compile time
