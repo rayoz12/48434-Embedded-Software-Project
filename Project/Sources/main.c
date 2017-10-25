@@ -202,7 +202,7 @@ void AnalogLoopback(void* args)
 
 float InputConditioning(int16_t voltage)
 {
-  float conditionedVoltage = (float)voltage / (float)100;
+  float conditionedVoltage = (float)voltage / (float)100.0;
   return conditionedVoltage;
 }
 
@@ -234,22 +234,21 @@ void TowerInit(void *pData)
   } while (!success);
 
   //allocate the number and mode as the first 2 16bit spots in memory.
-  if (success)
-  {
-    Flash_AllocateVar((void *) &TowerNumber, 2);
-    Flash_AllocateVar((void *) &TowerMode, 2);
+//  Flash_AllocateVar((void *) &TowerNumber, 2);
+//  Flash_AllocateVar((void *) &TowerMode, 2);
+//
+//  if (TowerNumber->l == CLEAR_DATA)
+//  {
+//    //there is no number stored here the memory is clear, so we need to write the number
+//    Flash_Write16((uint16_t *) TowerNumber, DEFAULT_TOWER_NUMBER);
+//  }
+//  if (TowerMode->l == CLEAR_DATA)
+//  {
+//    //there is no number stored here the memory is clear, so we need to write the number
+//    Flash_Write16((uint16_t *) TowerMode, DEFAULT_TOWER_MODE);
+//  }
+  //allocate the tariffs
 
-    if (TowerNumber->l == CLEAR_DATA)
-    {
-      //there is no number stored here the memory is clear, so we need to write the number
-      Flash_Write16((uint16_t *) TowerNumber, DEFAULT_TOWER_NUMBER);
-    }
-    if (TowerMode->l == CLEAR_DATA)
-    {
-      //there is no number stored here the memory is clear, so we need to write the number
-      Flash_Write16((uint16_t *) TowerMode, DEFAULT_TOWER_MODE);
-    }
-  }
 
   // Initialise the low power timer to tick every 10 ms
 //  LPTMRInit(ANALOG_SAMPLE_INTERVAL);
