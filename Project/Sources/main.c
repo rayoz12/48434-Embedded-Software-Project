@@ -28,30 +28,30 @@
 
 // CPU module - contains low level hardware initialization routines
 #include "Cpu.h"
-#include <math.h>
-
-#include "main.h"
-
-#include "UART.h"
-#include "packet.h"
-#include "Flash.h"
-#include "LEDs.h"
 #include "PE_Types.h"
 #include "PE_Error.h"
 #include "PE_Const.h"
 #include "IO_Map.h"
 
+#include "main.h"
+#include "Constants.h"
+#include <math.h>
+
+#include "UART.h"
+#include "packet.h"
+#include "Flash.h"
+#include "LEDs.h"
 #include "RTC.h"
 #include "FTM.h"
 #include "PIT.h"
 #include "Measurements.h"
+#include "FixedPoint.h"
 
 // Simple OS
 #include "OS.h"
 
 // Analog functions
 #include "analog.h"
-
 
 // Thread stacks
 static uint32_t AnalogThreadStacks[NB_ANALOG_CHANNELS][THREAD_STACK_SIZE] __attribute__ ((aligned(0x08)));
@@ -74,39 +74,39 @@ OS_THREAD_STACK(CalculateThreadStack, THREAD_STACK_SIZE);
 void FTMCallback0(void* arg);
 
 /*! @brief Sends the tower version packet
-*
-*  @return bool
-*/
+ *
+ *  @return bool
+ */
 static bool VersionFunction();
 
 /*! @brief Handles the tower number packet
-*
-*  @return bool
-*/
+ *
+ *  @return bool
+ */
 static bool TNumberFunction();
 
 /*! @brief Handles tower mode packet
-*
-*  @return bool
-*/
+ *
+ *  @return bool
+ */
 static bool TModeFunction();
 
 /*! @brief Handles the program byte packet
-*
-*  @return bool
-*/
+ *
+ *  @return bool
+ */
 static bool ProgramFunction();
 
 /*! @brief Handles the read byte packet
-*
-*  @return bool
-*/
+ *
+ *  @return bool
+ */
 static bool ReadFunction();
 
 /*! @brief Handles the timer packets
-*
-*  @return bool
-*/
+ *
+ *  @return bool
+ */
 static bool TimeFunction();
 
 /*! @brief Handles a packet by executing the command operation.
@@ -154,18 +154,13 @@ float InputConditioning(int16_t voltage);
 // Thread priorities
 // 0 = highest priority
 // ----------------------------------------
-const uint8_t ANALOG_THREAD_PRIORITIES[NB_ANALOG_CHANNELS] = {3, 4};
+const uint8_t ANALOG_THREAD_PRIORITIES[NB_ANALOG_CHANNELS] =
+  {3, 4};
 
-
-const static TFTMChannel OneSecTimer = {
-  0,//channel number
-  CPU_MCGFF_CLK_HZ_CONFIG_0,//delay based on sample code chp6 pg 6 value of 24414
-  TIMER_FUNCTION_OUTPUT_COMPARE,
-  TIMER_OUTPUT_HIGH,
-  FTMCallback0,
-  0
-};
-
+const static TFTMChannel OneSecTimer =
+  {0, //channel number
+      CPU_MCGFF_CLK_HZ_CONFIG_0, //delay based on sample code chp6 pg 6 value of 24414
+      TIMER_FUNCTION_OUTPUT_COMPARE, TIMER_OUTPUT_HIGH, FTMCallback0, 0};
 
 /*! @brief Samples a value on an ADC channel and sends it to the corresponding DAC channel.
  *
@@ -183,7 +178,7 @@ void AnalogLoopback(void* args)
   *Samples.PutPtr = fabs(conditionedInput * analogCurrentInputValue);
 //  Samples.PowerBuffer
   //checks whether the value array of a channel is full and if not, increment to next space
-  if(Samples.PutPtr == &Samples.PowerBuffer[POWER_BUFFER_SIZE - 1])
+  if (Samples.PutPtr == &Samples.PowerBuffer[POWER_BUFFER_SIZE - 1])
     Samples.PutPtr = Samples.PowerBuffer;
   else
     Samples.PutPtr++;
@@ -196,7 +191,7 @@ void AnalogLoopback(void* args)
     Samples.SamplesNb = 0;
   }
   // Put analog sample--have to add input circuitry conditioning
-  Analog_Put(ANALOG_VOLTAGE_CHANNEL, (int16_t) conditionedInput);
+  Analog_Put(ANALOG_VOLTAGE_CHANNEL, (int16_t)conditionedInput);
   Analog_Put(ANALOG_CURRENT_CHANNEL, analogCurrentInputValue);
 }
 
@@ -206,6 +201,18 @@ float InputConditioning(int16_t voltage)
   return conditionedVoltage;
 }
 
+void AllocateFlash()
+{
+  //convert floating tariffs to Fixed
+  Fixed32Q24 converted[5];
+  for (int i = 0; i <= 5; i++)
+  {
+    converted[i] = FloatToFixed(TARIFFS[i]);
+  }
+
+  Flash_AllocateVar()
+
+}
 
 /*! @brief Initialises the tower by setting up the Baud rate, Flash, LED's and the tower number
  *
@@ -217,21 +224,27 @@ void TowerInit(void *pData)
 
   bool success = false;
   //keep trying until successful
-  do {
+  do
+  {
     bool packetSuccess = Packet_Init(BAUDRATE, CPU_BUS_CLK_HZ);
     bool flashSuccess = Flash_Init();
     bool LEDSuccess = LEDs_Init();
-    bool RTCSuccess = RTC_Init(RTCThread,NULL);
+    bool RTCSuccess = RTC_Init(RTCThread, NULL);
     bool FTMSuccess = FTM_Init();
     bool FTMLEDSetSuccess = FTM_Set(&OneSecTimer);
     bool PITSuccess = PIT_Init(CPU_BUS_CLK_HZ, &PITCallback, 0);
-    bool AnalogSuccess = Analog_Init(CPU_BUS_CLK_HZ);//added by john <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    bool AnalogSuccess = Analog_Init(CPU_BUS_CLK_HZ); //added by john <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     bool MeasurementsSuccess = Measurements_Init();
 
     success = packetSuccess && flashSuccess && LEDSuccess && RTCSuccess
-              && FTMSuccess && FTMLEDSetSuccess && PITSuccess && AnalogSuccess
-              && MeasurementsSuccess;
-  } while (!success);
+        && FTMSuccess && FTMLEDSetSuccess && PITSuccess && AnalogSuccess
+        && MeasurementsSuccess;
+  }
+  while (!success);
+
+
+
+
 
   //allocate the number and mode as the first 2 16bit spots in memory.
 //  Flash_AllocateVar((void *) &TowerNumber, 2);
@@ -248,7 +261,6 @@ void TowerInit(void *pData)
 //    Flash_Write16((uint16_t *) TowerMode, DEFAULT_TOWER_MODE);
 //  }
   //allocate the tariffs
-
 
   // Initialise the low power timer to tick every 10 ms
 //  LPTMRInit(ANALOG_SAMPLE_INTERVAL);
@@ -279,21 +291,27 @@ int main(void)
   OS_Init(CPU_CORE_CLK_HZ, true);
 
   // Create module initialisation thread, the two missing priorities are used in the AnalogLoopback threads
-  error = OS_ThreadCreate(TowerInit, NULL, &TowerInitThreadStack[THREAD_STACK_SIZE - 1], 0); // Highest priority
+  error = OS_ThreadCreate(TowerInit, NULL,
+                          &TowerInitThreadStack[THREAD_STACK_SIZE - 1], 0); // Highest priority
   //create main thread, always must be last priority so that main doesn't hog it.
-  error = OS_ThreadCreate(ReceiveThread, NULL, &ReceiveThreadStack[THREAD_STACK_SIZE - 1], 1); //create Receive UART thread thread
-  error = OS_ThreadCreate(TransmitThread, NULL, &TransmitThreadStack[THREAD_STACK_SIZE - 1], 2); //create transmit UART thread
-  error = OS_ThreadCreate(calculateBasic, NULL, &CalculateThreadStack[THREAD_STACK_SIZE - 1], 5); //create calculate  thread
-  error = OS_ThreadCreate(MainThread, NULL, &MainThreadStack[THREAD_STACK_SIZE - 1], 6);
+  error = OS_ThreadCreate(ReceiveThread, NULL,
+                          &ReceiveThreadStack[THREAD_STACK_SIZE - 1], 1); //create Receive UART thread thread
+  error = OS_ThreadCreate(TransmitThread, NULL,
+                          &TransmitThreadStack[THREAD_STACK_SIZE - 1], 2); //create transmit UART thread
+  error = OS_ThreadCreate(calculateBasic, NULL,
+                          &CalculateThreadStack[THREAD_STACK_SIZE - 1], 5); //create calculate  thread
+  error = OS_ThreadCreate(MainThread, NULL,
+                          &MainThreadStack[THREAD_STACK_SIZE - 1], 6);
 //  error = OS_ThreadCreate(LPTCallback, NULL, &LPTThreadStack[THREAD_STACK_SIZE - 1], 7); //create FTM0 thread
-  error = OS_ThreadCreate(FTMCallback0, NULL, &FTM0ThreadStack[THREAD_STACK_SIZE - 1], 7); //create FTM0 thread
+  error = OS_ThreadCreate(FTMCallback0, NULL,
+                          &FTM0ThreadStack[THREAD_STACK_SIZE - 1], 7); //create FTM0 thread
 //  error = OS_ThreadCreate(PITCallback, NULL, &PITThreadStack[THREAD_STACK_SIZE - 1], 9); //create PIT thread
-  error = OS_ThreadCreate(RTCThread, NULL, &RTCThreadStack[THREAD_STACK_SIZE - 1], 8); //create RTC thread
+  error = OS_ThreadCreate(RTCThread, NULL,
+                          &RTCThreadStack[THREAD_STACK_SIZE - 1], 8); //create RTC thread
 
   // Start multithreading - never returns!
   OS_Start();
 }
-
 
 void MainThread(void *pData)
 {
@@ -360,10 +378,11 @@ void HandlePacket()
   if (ackCommand)
     if (success)
       Packet_Put(Packet_Command ^ PACKET_ACK_MASK, Packet_Parameter1,
-          Packet_Parameter2, Packet_Parameter3);
+      Packet_Parameter2,
+                 Packet_Parameter3);
     else
       Packet_Put(Packet_Command, Packet_Parameter1, Packet_Parameter2,
-          Packet_Parameter3);
+      Packet_Parameter3);
 }
 
 /*! @brief Calls the startup function to send the start up packets (i.e. startup, version and tower number)
@@ -398,14 +417,14 @@ static bool TNumberFunction()
     uint16union_t newTowerNumber;
     newTowerNumber.s.Lo = Packet_Parameter2;
     newTowerNumber.s.Hi = Packet_Parameter3;
-    return Flash_Write16((uint16_t*) TowerNumber, newTowerNumber.l);
+    return Flash_Write16((uint16_t*)TowerNumber, newTowerNumber.l);
   }
   //get tower number
   else if (Packet_Parameter1 == 1)
   {
     Packet_Put(CMD_TNUMBER, Packet_Parameter1, TowerNumber->s.Lo,
-        TowerNumber->s.Hi);
-  return true;
+               TowerNumber->s.Hi);
+    return true;
   }
   //invalid get/set, success is false
   else if (Packet_Parameter1 > 2)
@@ -426,13 +445,12 @@ static bool TModeFunction()
     uint16union_t newTowerMode;
     newTowerMode.s.Lo = Packet_Parameter2;
     newTowerMode.s.Hi = Packet_Parameter3;
-    return Flash_Write16((uint16_t*) TowerMode, newTowerMode.l);
+    return Flash_Write16((uint16_t*)TowerMode, newTowerMode.l);
   }
   //get tower mode
   else if (Packet_Parameter1 == 1)
   {
-    Packet_Put(CMD_TMODE, Packet_Parameter1, TowerMode->s.Lo,
-        TowerMode->s.Hi);
+    Packet_Put(CMD_TMODE, Packet_Parameter1, TowerMode->s.Lo, TowerMode->s.Hi);
     return true;
   }
   //invalid get/set, success is false
@@ -455,7 +473,7 @@ static bool ProgramFunction()
   else
     //program byte
     return ProgramByte((uint8_t*) FLASH_DATA_START + Packet_Parameter1,
-        Packet_Parameter3);
+    Packet_Parameter3);
 }
 
 /*! @brief Handles the read byte packet
@@ -466,7 +484,7 @@ static bool ReadFunction()
 {
   if (Packet_Parameter1 < 0x08)
   {
-    uint8_t byte = *((uint8_t *) (FLASH_DATA_START + Packet_Parameter1));
+    uint8_t byte = *((uint8_t *)(FLASH_DATA_START + Packet_Parameter1));
     Packet_Put(CMD_READ_BYTE, Packet_Parameter1, 0, byte);
     return true;
   }
@@ -493,7 +511,6 @@ static bool TimeFunction()
   RTC_Set(Packet_Parameter1, Packet_Parameter2, Packet_Parameter3);
   return true;
 }
-
 
 /*! @brief Send the start up packets (i.e. startup, version and tower number)
  *
@@ -537,7 +554,8 @@ void RTCThread(void* arg)
 
 void FTMCallback0(void* args)
 {
-  for (;;) {
+  for (;;)
+  {
     OS_SemaphoreWait(FTMSemaphore[0], 0);
     LEDs_Off(LED_BLUE);
   }

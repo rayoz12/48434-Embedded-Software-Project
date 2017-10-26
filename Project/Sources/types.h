@@ -87,4 +87,9 @@ typedef union
   } dParts;
 } TFloat;
 
+typedef struct
+{
+  unsigned int l : 24;
+} uint24_t;
+
 #endif

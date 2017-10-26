@@ -157,13 +157,13 @@ bool Flash_Write16(volatile uint16_t* const address, const uint16_t data)
 		{
 			bit32.s.Lo = *(address-1);
 			bit32.s.Hi = data;
-			Flash_Write32((uint32_t *)(address-1), bit32.l);
+			return Flash_Write32((uint32_t *)(address-1), bit32.l);
 		}
 		else
 		{
 			bit32.s.Lo = data;
 			bit32.s.Hi = *(address+1);
-			Flash_Write32((uint32_t *)(address), bit32.l);
+			return Flash_Write32((uint32_t *)(address), bit32.l);
 		}
 	}
 	else
@@ -193,13 +193,13 @@ bool Flash_Write8(volatile uint8_t* const address, const uint8_t data)
 	{
 		bit16.s.Lo = data;
 		bit16.s.Hi = *(address+1);
-		Flash_Write16((uint16_t *)(address), bit16.l);
+		return Flash_Write16((uint16_t *)(address), bit16.l);
 	}
 	else
 	{
 		bit16.s.Lo = *(address-1);
 		bit16.s.Hi = data;
-		Flash_Write16((uint16_t *)(address-1), bit16.l);
+		return Flash_Write16((uint16_t *)(address-1), bit16.l);
 	}
 }
 
