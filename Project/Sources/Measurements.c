@@ -7,8 +7,7 @@
 
 #include "Measurements.h"
 
-#include "types.h"
-#include "OS.h"
+
 #include "analog.h"
 #include "main.h"
 #include "packet.h"

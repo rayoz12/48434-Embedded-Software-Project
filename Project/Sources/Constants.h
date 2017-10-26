@@ -5,26 +5,42 @@
  *      Author: 98112939
  */
 
-//tarrifs in the order: peak, shoulder, offPeak, secondNb, thirdNb
-const float TARRIFS[5] = {22.235, 4.4, 2.109, 1.713, 4.1};
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
 
-//tariff Defaults
+#include "types.h"
+
+//tariff Defaults holds values
 typedef struct {
-  struct ToU{
+  struct {
     double peak;
     double shoulder;
     double offPeak;
-  };
-  struct NonToU {
+  } ToU;
+  struct  {
     double secondNb;
     double thirdNb;
-  };
-} tariff_S;
+  } NonToU;
+} tariff_V;
 
-const tariff_S TARIFFS_STRUCT = {
-    .ToU.peak = 22.235,
-    .ToU.shoulder = 4.4,
-    .ToU.offPeak = 2.109,
-    .NonToU.secondNb = 1.713,
-    .NonToU.thirdNb = 4.1
-};
+//tarrifs in the order: peak, shoulder, offPeak, secondNb, thirdNb
+extern const float TARIFFS[5];
+
+extern const tariff_V TARIFFS_STRUCT;
+
+//tariff struct which holds the pointers to the flash locations. defined in tower init
+typedef struct {
+  struct {
+    uint32_t *peak;
+    uint32_t *shoulder;
+    uint32_t *offPeak;
+  } ToU;
+  struct  {
+    uint32_t *secondNb;
+    uint32_t *thirdNb;
+  } NonToU;
+} tariff_Ptr;
+
+
+
+#endif

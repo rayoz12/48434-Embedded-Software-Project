@@ -12,3 +12,6 @@ https://stackoverflow.com/questions/79677/whats-the-best-way-to-do-fixed-point-m
 
 
 convert the sampling interval to be defined at runtime rather than compile time
+
+Expanding Flash:
+to determine sector divide address offset by 8

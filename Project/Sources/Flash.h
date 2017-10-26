@@ -42,7 +42,7 @@
 /*!
  * The length of the flash
  */
-#define FLASH_SIZE 8
+#define FLASH_SIZE 24
 /*!
  * the command to write a phrase to flash
  */
@@ -59,6 +59,8 @@
  * Constant value that represents an allocated place in memory
  */
 #define SETBIT 1
+
+#define SECTOR_SIZE 8
 
 
 //all flash commands we'll need
@@ -104,7 +106,7 @@ typedef struct
 /*!
  * The End address of flash memory
  */
-#define FLASH_DATA_END   0x00080007LU
+#define FLASH_DATA_END   0x00080023LU
 //This is the value of the flash if there is no data.
 /*!
  *	The value of a clear byte of Flash

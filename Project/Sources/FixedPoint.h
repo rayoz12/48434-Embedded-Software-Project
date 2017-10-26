@@ -5,6 +5,9 @@
  *      Author: 98112939
  */
 
+#ifndef FIXEDPOINT_H
+#define FIXEDPOINT_H
+
 #include "types.h"
 
 typedef struct {
@@ -19,3 +22,5 @@ typedef struct {
 } Fixed32Q24;
 
 Fixed32Q24 FloatToFixed(float value);
+
+#endif

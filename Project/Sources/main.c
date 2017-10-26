@@ -34,7 +34,6 @@
 #include "IO_Map.h"
 
 #include "main.h"
-#include "Constants.h"
 #include <math.h>
 
 #include "UART.h"
@@ -203,14 +202,31 @@ float InputConditioning(int16_t voltage)
 
 void AllocateFlash()
 {
+  //allocate tariffs
   //convert floating tariffs to Fixed
   Fixed32Q24 converted[5];
-  for (int i = 0; i <= 5; i++)
+  for (int i = 0; i < 5; i++)
   {
     converted[i] = FloatToFixed(TARIFFS[i]);
   }
+  const int allocationSize = 4;
+  Flash_AllocateVar((void *) &tariffsFlash.ToU.peak, allocationSize);
+  Flash_AllocateVar((void *) &tariffsFlash.ToU.shoulder, allocationSize);
+  Flash_AllocateVar((void *) &tariffsFlash.ToU.offPeak, allocationSize);
+  Flash_AllocateVar((void *) &tariffsFlash.NonToU.secondNb, allocationSize);
+  Flash_AllocateVar((void *) &tariffsFlash.NonToU.thirdNb, allocationSize);
 
-  Flash_AllocateVar()
+  //write converted tariffs
+  if (*tariffsFlash.ToU.peak == 0xffffffff)
+    Flash_Write32((uint32_t *) tariffsFlash.ToU.peak, converted[0].fixed.f);
+  if (*tariffsFlash.ToU.shoulder == 0xffffffff)
+    Flash_Write32((uint32_t *) tariffsFlash.ToU.shoulder, converted[1].fixed.f);
+  if (*tariffsFlash.ToU.offPeak == 0xffffffff)
+    Flash_Write32((uint32_t *) tariffsFlash.ToU.offPeak, converted[2].fixed.f);
+  if (*tariffsFlash.NonToU.secondNb == 0xffffffff)
+    Flash_Write32((uint32_t *) tariffsFlash.NonToU.secondNb, converted[3].fixed.f);
+  if (*tariffsFlash.NonToU.thirdNb == 0xffffffff)
+    Flash_Write32((uint32_t *) tariffsFlash.NonToU.thirdNb, converted[4].fixed.f);
 
 }
 
@@ -243,24 +259,22 @@ void TowerInit(void *pData)
   while (!success);
 
 
+//  allocate the number and mode as the first 2 16bit spots in memory.
+  Flash_AllocateVar((void *) &TowerNumber, 2);
+  Flash_AllocateVar((void *) &TowerMode, 2);
 
-
-
-  //allocate the number and mode as the first 2 16bit spots in memory.
-//  Flash_AllocateVar((void *) &TowerNumber, 2);
-//  Flash_AllocateVar((void *) &TowerMode, 2);
-//
-//  if (TowerNumber->l == CLEAR_DATA)
-//  {
-//    //there is no number stored here the memory is clear, so we need to write the number
-//    Flash_Write16((uint16_t *) TowerNumber, DEFAULT_TOWER_NUMBER);
-//  }
-//  if (TowerMode->l == CLEAR_DATA)
-//  {
-//    //there is no number stored here the memory is clear, so we need to write the number
-//    Flash_Write16((uint16_t *) TowerMode, DEFAULT_TOWER_MODE);
-//  }
+  if (TowerNumber->l == CLEAR_DATA)
+  {
+    //there is no number stored here the memory is clear, so we need to write the number
+    Flash_Write16((uint16_t *) TowerNumber, DEFAULT_TOWER_NUMBER);
+  }
+  if (TowerMode->l == CLEAR_DATA)
+  {
+    //there is no number stored here the memory is clear, so we need to write the number
+    Flash_Write16((uint16_t *) TowerMode, DEFAULT_TOWER_MODE);
+  }
   //allocate the tariffs
+  AllocateFlash();
 
   // Initialise the low power timer to tick every 10 ms
 //  LPTMRInit(ANALOG_SAMPLE_INTERVAL);

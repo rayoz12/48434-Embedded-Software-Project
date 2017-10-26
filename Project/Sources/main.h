@@ -5,8 +5,12 @@
  *      Author: 98112939
  */
 
+#ifndef MAIN_H
+#define MAIN_H
+
 #include "types.h"
 #include "OS.h"
+#include "Constants.h"
 
 typedef enum
 {
@@ -51,3 +55,7 @@ const static uint32_t PIT_INTERVAL = ANALOG_SAMPLE_INTERVAL * 1000000; //ms to n
 //ASK IF BETWEEN BUILDS THE FLASH IS ERASED - It is.
 uint16union_t *TowerNumber; //FML Always uppercase first letter for globals
 uint16union_t *TowerMode;
+
+tariff_Ptr tariffsFlash;
+
+#endif

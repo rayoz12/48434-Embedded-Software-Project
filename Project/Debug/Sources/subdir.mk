@@ -4,6 +4,7 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../Sources/Constants.c \
 ../Sources/FIFO.c \
 ../Sources/FTM.c \
 ../Sources/FixedPoint.c \
@@ -18,6 +19,7 @@ C_SRCS += \
 ../Sources/packet.c 
 
 OBJS += \
+./Sources/Constants.o \
 ./Sources/FIFO.o \
 ./Sources/FTM.o \
 ./Sources/FixedPoint.o \
@@ -32,6 +34,7 @@ OBJS += \
 ./Sources/packet.o 
 
 C_DEPS += \
+./Sources/Constants.d \
 ./Sources/FIFO.d \
 ./Sources/FTM.d \
 ./Sources/FixedPoint.d \
