@@ -1,4 +1,4 @@
-Tariffs:
+Tariffs - Done:
 Store all tarrifs in flash. which means I have to expand flash to support more sectors. We need 20 bytes of space: (32 bits / 8) = 4 bytes * 5 = 20 bytes needed.
 Use 3 sectors now instead of 1 (24 bytes).
 

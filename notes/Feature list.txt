@@ -3,10 +3,9 @@ Store Tariff in flash
 FTM to change state to dormant after 15 seconds
 2 modes
 	-Intermediate
-	-Basic
+	-Basic.
 RTC - to track day time
-PIT - to keep track of time metering
-
+PIT - changed to have the sampling interval under this.
 
 void __attribute__ ((interrupt)) LPTimer_ISR(void);
 &LPTimer_ISR,            /* 0x65

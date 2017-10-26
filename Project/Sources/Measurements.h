@@ -32,6 +32,8 @@ typedef struct
 
 extern TSample Samples;
 
+extern TMeasurementsBasic basicMeasurements;
+
 bool Measurements_Init();
 
 void calculateBasic(void *pData);

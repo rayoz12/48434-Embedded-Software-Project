@@ -559,6 +559,8 @@ void RTCThread(void* arg)
     // Wait here until signaled that the RTC second interrupt has occured
     OS_SemaphoreWait(RTCSemaphore, 0);
 
+    basicMeasurements.TotalTime++;
+
     LEDs_Toggle(LED_YELLOW);
     uint8_t hours, minutes, seconds;
     RTC_Get(&hours, &minutes, &seconds);
