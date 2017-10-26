@@ -2,7 +2,6 @@ Tariffs:
 Store all tarrifs in flash. which means I have to expand flash to support more sectors. We need 20 bytes of space: (32 bits / 8) = 4 bytes * 5 = 20 bytes needed.
 Use 3 sectors now instead of 1 (24 bytes).
 
-
 Getting Tarrifs from Flash - have to store in fixed point
 use 32Q24: 32 bits, 24 for fractional. Supprot tarrifs up to $256 ask if we need more.
 resources:
