@@ -6,6 +6,7 @@
 C_SRCS += \
 ../Sources/FIFO.c \
 ../Sources/FTM.c \
+../Sources/FixedPoint.c \
 ../Sources/Flash.c \
 ../Sources/LED.c \
 ../Sources/LPT.c \
@@ -19,6 +20,7 @@ C_SRCS += \
 OBJS += \
 ./Sources/FIFO.o \
 ./Sources/FTM.o \
+./Sources/FixedPoint.o \
 ./Sources/Flash.o \
 ./Sources/LED.o \
 ./Sources/LPT.o \
@@ -32,6 +34,7 @@ OBJS += \
 C_DEPS += \
 ./Sources/FIFO.d \
 ./Sources/FTM.d \
+./Sources/FixedPoint.d \
 ./Sources/Flash.d \
 ./Sources/LED.d \
 ./Sources/LPT.d \

@@ -1,6 +1,15 @@
+Tariffs:
+Store all tarrifs in flash. which means I have to expand flash to support more sectors. We need 20 bytes of space: (32 bits / 8) = 4 bytes * 5 = 20 bytes needed.
+Use 3 sectors now instead of 1 (24 bytes).
+
+
 Getting Tarrifs from Flash - have to store in fixed point
+use 32Q24: 32 bits, 24 for fractional. Supprot tarrifs up to $256 ask if we need more.
+resources:
 https://stackoverflow.com/questions/3402702/converting-floating-point-to-32-bit-fixed-point-in-java
 https://stackoverflow.com/questions/10067510/fixed-point-arithmetic-in-c-programming
+https://stackoverflow.com/questions/79677/whats-the-best-way-to-do-fixed-point-math
+
 
 
 convert the sampling interval to be defined at runtime rather than compile time
