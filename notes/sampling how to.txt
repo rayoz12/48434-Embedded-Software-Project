@@ -19,3 +19,6 @@ The input conditioning circuitry is an assumption. So if we put 2.3v on the func
 To get RMS:
 get the highest absolute value of samples
 use that as Vpk and place in RMS formula
+
+after we get values we have to convert them to kwh: 
+
