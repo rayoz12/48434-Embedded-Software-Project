@@ -1,3 +1,21 @@
 Sample the channels within the PIT ISR
 Calculate the power of that sample and place it into an array. (sliding window)
 When we get 16 samples signal the calculate thread
+
+scratch the above out:
+Now instead use 2 arrays that hold Voltage and current. Then wait for full calculate in measure.
+Average power is calculated using P=Vrms * Irms * cos(phase)
+Energy we use calculate instanstanious power then firguire our period energy according to formula
+
+
+The samples are a range from -32768 to 32768. We are working with a range of +-10V. So we can assume that -10Volts is -32768 and 10 volts is 32768.
+
+so to get the voltage sampled it's a case of
+sample / 3276.8
+
+
+The input conditioning circuitry is an assumption. So if we put 2.3v on the function generator, interally we times by 100 to get the voltage (230v)
+
+To get RMS:
+get the highest absolute value of samples
+use that as Vpk and place in RMS formula

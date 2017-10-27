@@ -10,13 +10,16 @@
 
 #include "analog.h"
 #include "main.h"
-#include "packet.h"
+//#include "packet.h"
 #include "Constants.h"
+#include <math.h>
 
 TSample Samples;
 TMeasurementsBasic basicMeasurements;
 
 OS_ECB *CalculateSemaphore;
+
+function MaxVoltage(float array, int length);
 
 bool Measurements_Init()
 {
@@ -28,7 +31,6 @@ bool Measurements_Init()
   basicMeasurements.TotalEnergy = 0;
   basicMeasurements.TotalTime = 0;
 
-  totalEnergy = 0;
 
   CalculateSemaphore = OS_SemaphoreCreate(0);
 
@@ -41,19 +43,28 @@ void calculateBasic(void *pData)
   for (;;)
   {
     int powerSum = 0, periodEnergy = 0;
+    float VRMS, CRMS;
     OS_SemaphoreWait(CalculateSemaphore, 0);
 
     for (int i=0; i < ANALOG_SAMPLE_SIZE; i++)
       powerSum += Samples.PowerBuffer[i];
 
-    double averagePower = powerSum / ANALOG_SAMPLE_SIZE;
-
     periodEnergy = powerSum * ANALOG_SAMPLE_INTERVAL;
+    VRMS = MaxVoltage(Samples.VoltageBuffer, ANALOG_SAMPLE_SIZE) / sqrt(2);
+    CRMS = MaxVoltage(Samples.CurrentBuffer, ANALOG_SAMPLE_SIZE) / sqrt(2);
 
-    basicMeasurements.AveragePower = (basicMeasurements.AveragePower + averagePower) / 2;
-    basicMeasurements.TotalEnergy += totalEnergy;
+    float power = VRMS * CRMS * cos(0.0);
 
-    Packet_Put('d', (uint8_t) averagePower, (uint8_t) periodEnergy,  Samples.PowerBuffer[8]);
+    //calculate in kwh
+    //put to kilowatts
+    float Kw = power / 1000;
+    //convert to hours
+
+
+
+    basicMeasurements.AveragePower = (basicMeasurements.AveragePower + power) / 2;
+    basicMeasurements.TotalEnergy += periodEnergy;
+
   }
 
   //calculate instantaneous power then place in buffer for average after 16 samples
@@ -65,6 +76,16 @@ void calculateBasic(void *pData)
   //add this 16 sample's energy to total energy
 }
 
-void get
+function MaxVoltage(float array[], int length)
+{
+  int max = array[0];
+  for(int i = 1; i < length;i++)
+  {
+    float elem = fabs(array[i]);
+    if (elem > max)
+      max = elem;
+  }
+  return max;
+}
 
 

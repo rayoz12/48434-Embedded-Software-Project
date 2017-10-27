@@ -51,6 +51,14 @@ bool UART_InChar(uint8_t * const dataPtr);
  */
 bool UART_OutChar(const uint8_t data);
 
+/*! @brief Place a string in the transmit FIFO.
+ *
+ *  @param data The string to be placed in the transmit FIFO. This must be null terminated!
+ *  @return bool - TRUE if the data was placed in the transmit FIFO.
+ *  @note Assumes that UART_Init has been called.
+ */
+bool UART_OutString(const uint8_t data[]);
+
 /*! @brief Poll the UART status register to try and receive and/or transmit one character.
  *
  *  @return void

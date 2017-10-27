@@ -122,6 +122,18 @@ bool UART_OutChar(const uint8_t data)
 //	return success;
 }
 
+bool UART_OutString(const uint8_t data[])
+{
+  uint8_t currentChar = data[0];
+  int i = 0;
+  do
+  {
+    FIFO_Put(&TxFIFO, currentChar);
+    currentChar = data[++i];
+  } while(currentChar != '\0');
+  return true;
+}
+
 /*! @brief Poll the UART status register to try and receive and/or transmit one character.
  *
  *  @return void

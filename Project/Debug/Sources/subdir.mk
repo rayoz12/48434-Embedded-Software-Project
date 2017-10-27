@@ -9,6 +9,7 @@ C_SRCS += \
 ../Sources/FTM.c \
 ../Sources/FixedPoint.c \
 ../Sources/Flash.c \
+../Sources/HMI.c \
 ../Sources/LED.c \
 ../Sources/LPT.c \
 ../Sources/Measurements.c \
@@ -24,6 +25,7 @@ OBJS += \
 ./Sources/FTM.o \
 ./Sources/FixedPoint.o \
 ./Sources/Flash.o \
+./Sources/HMI.o \
 ./Sources/LED.o \
 ./Sources/LPT.o \
 ./Sources/Measurements.o \
@@ -39,6 +41,7 @@ C_DEPS += \
 ./Sources/FTM.d \
 ./Sources/FixedPoint.d \
 ./Sources/Flash.d \
+./Sources/HMI.d \
 ./Sources/LED.d \
 ./Sources/LPT.d \
 ./Sources/Measurements.d \

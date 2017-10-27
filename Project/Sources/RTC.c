@@ -11,6 +11,7 @@
 */
 
 // new types
+#include "RTC.h"
 #include "types.h"
 #include "LEDs.h"
 #include "MK70F12.h"
@@ -45,8 +46,8 @@ bool RTC_Init(void (*userFunction)(void*), void* userArguments)
 	// Following reset conditions, if the TIF flag is set
 	if (RTC_SR & RTC_SR_TIF_MASK)
 	{
-		RTC_SR &= ~RTC_SR_TCE_MASK;		// Disable the time counter
-		RTC_TSR = RTC_TTSR;				// Write the time the TIF flag was set
+		RTC_SR &= ~RTC_SR_TCE_MASK;		// Disable the rtcSeconds counter
+		RTC_TSR = RTC_TTSR;				// Write the rtcSeconds the TIF flag was set
 	}
 
 	RTC_CR |= RTC_CR_SC2P_MASK;  // Oscillator 2pF Load Configure: 1 enabled
@@ -67,19 +68,19 @@ bool RTC_Init(void (*userFunction)(void*), void* userArguments)
 
 	RTC_LR &= ~(RTC_LR_CRL_MASK); // Locks Control Register
 
-	// Wait arbitrary amount of ticks until the time counter is enabled
+	// Wait arbitrary amount of ticks until the rtcSeconds counter is enabled
 	for (int i = 0; i < 100000; i++);
 
-	RTC_SR |= RTC_SR_TCE_MASK; // Initialise/Enable Timer Counter
+	RTC_SR |= RTC_SR_TCE_MASK; // Initialise/Enable rtcSecondsr Counter
 
 	return true;
 }
 
-/*! @brief Sets the value of the real time clock.
+/*! @brief Sets the value of the real rtcSeconds clock.
  *
- *  @param hours The desired value of the real time clock hours (0-23).
- *  @param minutes The desired value of the real time clock minutes (0-59).
- *  @param seconds The desired value of the real time clock seconds (0-59).
+ *  @param hours The desired value of the real rtcSeconds clock hours (0-23).
+ *  @param minutes The desired value of the real rtcSeconds clock minutes (0-59).
+ *  @param seconds The desired value of the real rtcSeconds clock seconds (0-59).
  *  @note Assumes that the RTC module has been initialized and all input parameters are in range.
  */
 void RTC_Set(const uint8_t hours, const uint8_t minutes, const uint8_t seconds)
@@ -87,7 +88,7 @@ void RTC_Set(const uint8_t hours, const uint8_t minutes, const uint8_t seconds)
 	const int secondsInhour = 60 * 60;
 	const int secondsInDay = secondsInhour * 24;
 
-	//disable seconds timer
+	//disable seconds rtcSecondsr
 	RTC_SR &= ~RTC_SR_TCE_MASK;
 	//take 2 consecutive reads to ensure accuracy.
 	int read1,read2, rtcReadSeconds, rtcWriteSeconds;
@@ -107,16 +108,16 @@ void RTC_Set(const uint8_t hours, const uint8_t minutes, const uint8_t seconds)
 	hourSeconds = hours * secondsInhour;
 	minuteSeconds = minutes * 60;
 	rtcWriteSeconds += hourSeconds + minuteSeconds + seconds;
-	RTC_TSR = rtcWriteSeconds; //write the new time
+	RTC_TSR = rtcWriteSeconds; //write the new rtcSeconds
 
-	RTC_SR |= RTC_SR_TCE_MASK; //enable seconds timer
+	RTC_SR |= RTC_SR_TCE_MASK; //enable seconds rtcSecondsr
 }
 
-/*! @brief Gets the value of the real time clock.
+/*! @brief Gets the value of the real rtcSeconds clock.
  *
- *  @param hours The address of a variable to store the real time clock hours.
- *  @param minutes The address of a variable to store the real time clock minutes.
- *  @param seconds The address of a variable to store the real time clock seconds.
+ *  @param hours The address of a variable to store the real rtcSeconds clock hours.
+ *  @param minutes The address of a variable to store the real rtcSeconds clock minutes.
+ *  @param seconds The address of a variable to store the real rtcSeconds clock seconds.
  *  @note Assumes that the RTC module has been initialized.
  */
 void RTC_Get(uint8_t* const hours, uint8_t* const minutes, uint8_t* const seconds)
@@ -130,14 +131,16 @@ void RTC_Get(uint8_t* const hours, uint8_t* const minutes, uint8_t* const second
 	} while (read1 != read2);
 	int rtcSeconds = read1;
 
-	const int secondsInhour = 60 * 60;
-	const int secondsInDay = secondsInhour * 24;
+  Format_Seconds(rtcSeconds, hours, minutes, seconds);
+}
 
-	//get the last seconds since last day
-	int daySeconds = rtcSeconds % secondsInDay;
-	*hours = daySeconds / secondsInhour;
-  *minutes = (daySeconds % secondsInhour) / 60;
-  *seconds = (daySeconds % secondsInhour) % 60;
+void Format_Seconds(int totalSeconds, uint8_t* const hours, uint8_t* const minutes, uint8_t* const seconds)
+{
+  *hours = totalSeconds/3600;
+  totalSeconds = totalSeconds%3600;
+  *minutes = totalSeconds/60;
+  totalSeconds = totalSeconds%60;
+  *seconds = totalSeconds;
 }
 
 /*! @brief Interrupt service routine for the RTC.
@@ -149,13 +152,7 @@ void RTC_Get(uint8_t* const hours, uint8_t* const minutes, uint8_t* const second
 void __attribute__ ((interrupt)) RTC_ISR(void)
 {
 	OS_ISREnter();
-
 	OS_SemaphoreSignal(RTCSemaphore);
-//	if (UserFunction)
-//	{
-//		(*UserFunction)(UserArguments);
-//	}
-
 	OS_ISRExit();
 
 }

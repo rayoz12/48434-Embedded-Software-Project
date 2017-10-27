@@ -10,7 +10,7 @@
 
 OS_ECB *LPTSemaphore;
 
-void LPTMRInit(const uint16_t count)
+bool LPTMRInit(const uint16_t count)
 {
   LPTSemaphore = OS_SemaphoreCreate(0);
 
@@ -47,6 +47,8 @@ void LPTMRInit(const uint16_t count)
 
   //Turn on LPTMR and start counting
   LPTMR0_CSR |= LPTMR_CSR_TEN_MASK;
+
+  return true;
 }
 
 void __attribute__ ((interrupt)) LPTimer_ISR(void)

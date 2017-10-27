@@ -9,6 +9,6 @@
 
 extern OS_ECB *LPTSemaphore;
 
-void LPTMRInit(const uint16_t count);
+bool LPTMRInit(const uint16_t count);
 
 void __attribute__ ((interrupt)) LPTimer_ISR(void);

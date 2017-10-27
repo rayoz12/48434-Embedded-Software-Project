@@ -11,6 +11,7 @@
 #include "types.h"
 #include "OS.h"
 #include "Constants.h"
+#include "Measurements.h"
 
 typedef enum
 {
@@ -35,6 +36,8 @@ typedef enum
 #define ANALOG_SAMPLE_INTERVAL 1.25
 #define ANALOG_VOLTAGE_CHANNEL 0
 #define ANALOG_CURRENT_CHANNEL 1
+//display cycle interval in ms, so for 10 seconds = 1000 * 10
+#define DISPLAY_CYCLE_INTERVAL 10000
 
 /*!
  * Param 3 of CMD program byte which tells tower to erase sector
@@ -56,6 +59,6 @@ const static uint32_t PIT_INTERVAL = ANALOG_SAMPLE_INTERVAL * 1000000; //ms to n
 uint16union_t *TowerNumber; //FML Always uppercase first letter for globals
 uint16union_t *TowerMode;
 
-tariff_Ptr tariffsFlash;
+tariff_Ptr TariffsFlash;
 
 #endif

@@ -19,6 +19,12 @@ Input conditioning circuitry - Sems like we'll have to process it in software
 
 SW1 is on Port D pin 0. Used to cycle between displays
 
+## TODO:
+Tower crashes on first run (or after building and flashing)
+
+	-Probably has to do with writing the tariffs on start up.
+	-There is an access error FSTAT[ACCERR] idk why lol
+
 
 ## Useful Links
 http://www.electronics-tutorials.ws/accircuits/average-voltage.html

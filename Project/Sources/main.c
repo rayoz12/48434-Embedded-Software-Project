@@ -36,6 +36,7 @@
 #include "main.h"
 #include <math.h>
 
+
 #include "UART.h"
 #include "packet.h"
 #include "Flash.h"
@@ -45,6 +46,8 @@
 #include "PIT.h"
 #include "Measurements.h"
 #include "FixedPoint.h"
+#include "HMI.h"
+#include "LPT.h"
 
 // Simple OS
 #include "OS.h"
@@ -62,6 +65,7 @@ OS_THREAD_STACK(FTM0ThreadStack, THREAD_STACK_SIZE);
 //OS_THREAD_STACK(LPTThreadStack, THREAD_STACK_SIZE);
 OS_THREAD_STACK(TransmitThreadStack, THREAD_STACK_SIZE);
 OS_THREAD_STACK(ReceiveThreadStack, THREAD_STACK_SIZE);
+OS_THREAD_STACK(HMIThreadStack, THREAD_STACK_SIZE);
 //project threads
 //Measurements.c
 OS_THREAD_STACK(CalculateThreadStack, THREAD_STACK_SIZE);
@@ -143,11 +147,21 @@ void RTCThread(void* arg);
  */
 void PITCallback(void* arg);
 
+void LPTCallback(void* arg);
+
+void SwitchCallback(void* arg);
+
 void MainThread(void *pData);
 
-void AnalogLoopback(void* pData);
+void AnalogLoopback(void* args);
 
-float InputConditioning(int16_t voltage);
+void InputConditioning(int16_t voltage, int16_t current);
+
+void OutputHMI();
+
+void SwitchCallbackThread(void *pData);
+
+
 
 // ----------------------------------------
 // Thread priorities
@@ -167,21 +181,13 @@ const static TFTMChannel OneSecTimer =
 void AnalogLoopback(void* args)
 {
   int16_t analogVoltageInputValue;
-  float conditionedInput;
   int16_t analogCurrentInputValue;
-
   // Get analog sample
   Analog_Get(ANALOG_VOLTAGE_CHANNEL, &analogVoltageInputValue);
   Analog_Get(ANALOG_CURRENT_CHANNEL, &analogCurrentInputValue);
-  conditionedInput = InputConditioning(analogVoltageInputValue);
-  *Samples.PutPtr = fabs(conditionedInput * analogCurrentInputValue);
-//  Samples.PowerBuffer
-  //checks whether the value array of a channel is full and if not, increment to next space
-  if (Samples.PutPtr == &Samples.PowerBuffer[POWER_BUFFER_SIZE - 1])
-    Samples.PutPtr = Samples.PowerBuffer;
-  else
-    Samples.PutPtr++;
-
+  int sample = Samples.SamplesNb;
+  InputConditioning(analogVoltageInputValue, analogCurrentInputValue, &Samples.VoltageBuffer[sample], &Samples.CurrentBuffer[sample]);
+  Samples.PowerBuffer[Samples.SamplesNb] = fabs(Samples.VoltageBuffer[sample] * Samples.CurrentBuffer[sample]);
   Samples.SamplesNb++;
 
   if (Samples.SamplesNb >= 16)
@@ -190,14 +196,25 @@ void AnalogLoopback(void* args)
     Samples.SamplesNb = 0;
   }
   // Put analog sample--have to add input circuitry conditioning
-  Analog_Put(ANALOG_VOLTAGE_CHANNEL, (int16_t)conditionedInput);
+  Analog_Put(ANALOG_VOLTAGE_CHANNEL, (int16_t)Samples.VoltageBuffer[sample]);
   Analog_Put(ANALOG_CURRENT_CHANNEL, analogCurrentInputValue);
 }
 
-float InputConditioning(int16_t voltage)
+void InputConditioning(int16_t voltage, int16_t current, float *voltageOut, float *currentOut)
 {
-  float conditionedVoltage = (float)voltage / (float)100.0;
-  return conditionedVoltage;
+  float conditionedVoltage, conditionedCurrent;
+  //convert digital samples (16 bit signed) to scale to 10V.
+  if (voltage < 0)
+    conditionedVoltage = (float)voltage / -3276.8f;
+  else
+    conditionedVoltage = (float)voltage / 3276.7f;
+  //scale the sample up by 100 to get the actual voltage
+  *currentOut = conditionedVoltage * 100;
+  if (current < 0)
+    *currentOut = (float)current / -3276.8f;
+  else
+    *currentOut = (float)current / 3276.7f;
+
 }
 
 void AllocateFlash()
@@ -210,23 +227,23 @@ void AllocateFlash()
     converted[i] = FloatToFixed(TARIFFS[i]);
   }
   const int allocationSize = 4;
-  Flash_AllocateVar((void *) &tariffsFlash.ToU.peak, allocationSize);
-  Flash_AllocateVar((void *) &tariffsFlash.ToU.shoulder, allocationSize);
-  Flash_AllocateVar((void *) &tariffsFlash.ToU.offPeak, allocationSize);
-  Flash_AllocateVar((void *) &tariffsFlash.NonToU.secondNb, allocationSize);
-  Flash_AllocateVar((void *) &tariffsFlash.NonToU.thirdNb, allocationSize);
+  Flash_AllocateVar((void *) &TariffsFlash.ToU.peak, allocationSize);
+  Flash_AllocateVar((void *) &TariffsFlash.ToU.shoulder, allocationSize);
+  Flash_AllocateVar((void *) &TariffsFlash.ToU.offPeak, allocationSize);
+  Flash_AllocateVar((void *) &TariffsFlash.NonToU.secondNb, allocationSize);
+  Flash_AllocateVar((void *) &TariffsFlash.NonToU.thirdNb, allocationSize);
 
   //write converted tariffs
-  if (*tariffsFlash.ToU.peak == 0xffffffff)
-    Flash_Write32((uint32_t *) tariffsFlash.ToU.peak, converted[0].fixed.f);
-  if (*tariffsFlash.ToU.shoulder == 0xffffffff)
-    Flash_Write32((uint32_t *) tariffsFlash.ToU.shoulder, converted[1].fixed.f);
-  if (*tariffsFlash.ToU.offPeak == 0xffffffff)
-    Flash_Write32((uint32_t *) tariffsFlash.ToU.offPeak, converted[2].fixed.f);
-  if (*tariffsFlash.NonToU.secondNb == 0xffffffff)
-    Flash_Write32((uint32_t *) tariffsFlash.NonToU.secondNb, converted[3].fixed.f);
-  if (*tariffsFlash.NonToU.thirdNb == 0xffffffff)
-    Flash_Write32((uint32_t *) tariffsFlash.NonToU.thirdNb, converted[4].fixed.f);
+  if (*TariffsFlash.ToU.peak == 0xffffffff)
+    Flash_Write32((uint32_t *) TariffsFlash.ToU.peak, converted[0].fixed.f);
+  if (*TariffsFlash.ToU.shoulder == 0xffffffff)
+    Flash_Write32((uint32_t *) TariffsFlash.ToU.shoulder, converted[1].fixed.f);
+  if (*TariffsFlash.ToU.offPeak == 0xffffffff)
+    Flash_Write32((uint32_t *) TariffsFlash.ToU.offPeak, converted[2].fixed.f);
+  if (*TariffsFlash.NonToU.secondNb == 0xffffffff)
+    Flash_Write32((uint32_t *) TariffsFlash.NonToU.secondNb, converted[3].fixed.f);
+  if (*TariffsFlash.NonToU.thirdNb == 0xffffffff)
+    Flash_Write32((uint32_t *) TariffsFlash.NonToU.thirdNb, converted[4].fixed.f);
 
 }
 
@@ -237,7 +254,6 @@ void AllocateFlash()
 void TowerInit(void *pData)
 {
   //OS setup
-
   bool success = false;
   //keep trying until successful
   do
@@ -251,10 +267,12 @@ void TowerInit(void *pData)
     bool PITSuccess = PIT_Init(CPU_BUS_CLK_HZ, &PITCallback, 0);
     bool AnalogSuccess = Analog_Init(CPU_BUS_CLK_HZ); //added by john <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     bool MeasurementsSuccess = Measurements_Init();
+    bool HMISuccess = HMI_Init();
+    bool LPTSuccess = LPTMRInit(DISPLAY_CYCLE_INTERVAL);// Initialise the low power timer to tick every 10 s
 
     success = packetSuccess && flashSuccess && LEDSuccess && RTCSuccess
         && FTMSuccess && FTMLEDSetSuccess && PITSuccess && AnalogSuccess
-        && MeasurementsSuccess;
+        && MeasurementsSuccess && HMISuccess;
   }
   while (!success);
 
@@ -275,9 +293,6 @@ void TowerInit(void *pData)
   }
   //allocate the tariffs
   AllocateFlash();
-
-  // Initialise the low power timer to tick every 10 ms
-//  LPTMRInit(ANALOG_SAMPLE_INTERVAL);
 
   //Turn on LED to show that we have initialised successfully
   LEDs_On(LED_GREEN);
@@ -316,10 +331,8 @@ int main(void)
                           &CalculateThreadStack[THREAD_STACK_SIZE - 1], 5); //create calculate  thread
   error = OS_ThreadCreate(MainThread, NULL,
                           &MainThreadStack[THREAD_STACK_SIZE - 1], 6);
-//  error = OS_ThreadCreate(LPTCallback, NULL, &LPTThreadStack[THREAD_STACK_SIZE - 1], 7); //create FTM0 thread
   error = OS_ThreadCreate(FTMCallback0, NULL,
                           &FTM0ThreadStack[THREAD_STACK_SIZE - 1], 7); //create FTM0 thread
-//  error = OS_ThreadCreate(PITCallback, NULL, &PITThreadStack[THREAD_STACK_SIZE - 1], 9); //create PIT thread
   error = OS_ThreadCreate(RTCThread, NULL,
                           &RTCThreadStack[THREAD_STACK_SIZE - 1], 8); //create RTC thread
 
@@ -559,12 +572,15 @@ void RTCThread(void* arg)
     // Wait here until signaled that the RTC second interrupt has occured
     OS_SemaphoreWait(RTCSemaphore, 0);
 
+    LEDs_Toggle(LED_YELLOW);
+//    uint8_t hours, minutes, seconds;
+//    RTC_Get(&hours, &minutes, &seconds);
+//    Packet_Put(CMD_TIME, hours, minutes, seconds);
+
     basicMeasurements.TotalTime++;
 
-    LEDs_Toggle(LED_YELLOW);
-    uint8_t hours, minutes, seconds;
-    RTC_Get(&hours, &minutes, &seconds);
-    Packet_Put(CMD_TIME, hours, minutes, seconds);
+    //here we also increment the seconds until dormant
+    HMI_Tick();
   }
 }
 
@@ -580,6 +596,15 @@ void FTMCallback0(void* args)
 void PITCallback(void* arg)
 {
   AnalogLoopback(arg);
+}
+
+void LPTCallback(void* arg)
+{
+  for (;;) {
+    OS_SemaphoreWait(LPTSemaphore, 0);
+    //update display
+    HMI_Output();
+  }
 }
 
 /*!

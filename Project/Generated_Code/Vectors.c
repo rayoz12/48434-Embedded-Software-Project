@@ -59,6 +59,7 @@
 #include "FTM.h"
 #include "PIT.h"
 #include "LPT.h"
+#include "HMI.h"
 
 #include "Cpu.h"
 #include "OS.h"
@@ -185,7 +186,7 @@
     (tIsrFunc)&Cpu_Interrupt,          /* 0x67  0x0000019C   -   ivINT_PORTA                    unused by PE */
     (tIsrFunc)&Cpu_Interrupt,          /* 0x68  0x000001A0   -   ivINT_PORTB                    unused by PE */
     (tIsrFunc)&Cpu_Interrupt,          /* 0x69  0x000001A4   -   ivINT_PORTC                    unused by PE */
-    (tIsrFunc)&Cpu_Interrupt,          /* 0x6A  0x000001A8   -   ivINT_PORTD                    unused by PE */
+    (tIsrFunc)&SW1_ISR,          /* 0x6A  0x000001A8   -   ivINT_PORTD                    unused by PE */
     (tIsrFunc)&Cpu_Interrupt,          /* 0x6B  0x000001AC   -   ivINT_PORTE                    unused by PE */
     (tIsrFunc)&Cpu_Interrupt,          /* 0x6C  0x000001B0   -   ivINT_PORTF                    unused by PE */
     (tIsrFunc)&Cpu_Interrupt,          /* 0x6D  0x000001B4   -   ivINT_DDR                      unused by PE */

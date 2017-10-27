@@ -9,8 +9,9 @@
 
 #include "OS.h"
 #include "types.h"
+#include "main.h"
 
-#define POWER_BUFFER_SIZE 16
+#define POWER_BUFFER_SIZE ANALOG_SAMPLE_SIZE
 #define POWER_WINDOW_SIZE POWER_BUFFER_SIZE
 
 extern OS_ECB *CalculateSemaphore;
@@ -19,7 +20,8 @@ typedef struct
 {
   uint16_t volatile SamplesNb;  /*!< The number of bytes currently stored in the buffer */
   float PowerBuffer[POWER_BUFFER_SIZE];  /*!< The actual array of bytes to store the data */
-  float *PutPtr;     /*!< The index of the next available empty position in the buffer */
+  float VoltageBuffer[ANALOG_SAMPLE_SIZE];
+  float CurrentBuffer[ANALOG_SAMPLE_SIZE];
 } TSample;
 
 typedef struct
@@ -29,6 +31,15 @@ typedef struct
   int TotalEnergy;
   double TotalCost;
 } TMeasurementsBasic;
+
+typedef enum
+{
+  DORMANT,
+  METERING_TIME,
+  AVERAGE_POWER,
+  TOTAL_ENERGY,
+  TOTAL_COST
+} TDISPLAY_STATES;
 
 extern TSample Samples;
 
