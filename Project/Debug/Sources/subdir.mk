@@ -15,6 +15,7 @@ C_SRCS += \
 ../Sources/Measurements.c \
 ../Sources/PIT.c \
 ../Sources/RTC.c \
+../Sources/TowerProtocol.c \
 ../Sources/UART.c \
 ../Sources/main.c \
 ../Sources/packet.c 
@@ -31,6 +32,7 @@ OBJS += \
 ./Sources/Measurements.o \
 ./Sources/PIT.o \
 ./Sources/RTC.o \
+./Sources/TowerProtocol.o \
 ./Sources/UART.o \
 ./Sources/main.o \
 ./Sources/packet.o 
@@ -47,6 +49,7 @@ C_DEPS += \
 ./Sources/Measurements.d \
 ./Sources/PIT.d \
 ./Sources/RTC.d \
+./Sources/TowerProtocol.d \
 ./Sources/UART.d \
 ./Sources/main.d \
 ./Sources/packet.d 

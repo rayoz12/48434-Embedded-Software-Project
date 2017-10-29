@@ -46,7 +46,9 @@ void RTC_Set(const uint8_t hours, const uint8_t minutes, const uint8_t seconds);
  */
 void RTC_Get(uint8_t* const hours, uint8_t* const minutes, uint8_t* const seconds);
 
-void Format_Seconds(int totalSeconds, uint8_t* const hours, uint8_t* const minutes, uint8_t* const seconds);
+void Format_Seconds_Hours(int totalSeconds, uint8_t* const hours, uint8_t* const minutes, uint8_t* const seconds);
+
+void Format_Seconds_Days(int totalSeconds, uint8_t* days, uint8_t* const hours, uint8_t* const minutes, uint8_t* const seconds);
 
 
 /*! @brief Interrupt service routine for the RTC.

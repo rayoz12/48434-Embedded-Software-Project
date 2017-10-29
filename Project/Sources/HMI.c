@@ -11,6 +11,8 @@
 #include "RTC.h"
 #include "Measurements.h"
 #include <stdio.h>
+#include <string.h>
+#include <math.h>
 #include "UART.h"
 
 OS_ECB *SW1Semaphore;
@@ -80,15 +82,19 @@ void HMI_Output()
 {
   //cycle display
   uint8_t hours, minutes, seconds, outBuff[256];
+  int real, frac;
   switch (DisplayState)
   {
     case METERING_TIME:
-      Format_Seconds(basicMeasurements.TotalTime, &hours, &minutes, &seconds);
-      sprintf(outBuff, "Metering Time: %d:%d:%d\n", hours, minutes, seconds);
+      Format_Seconds_Hours(basicMeasurements.TotalTime, &hours, &minutes, &seconds);
+      sprintf(outBuff, "Metering Time: %02d:%02d:%02d\n", hours, minutes, seconds);
       UART_OutString(outBuff);
       break;
     case AVERAGE_POWER:
-      sprintf(outBuff, "Average Power: %f kWh\n", basicMeasurements.AveragePower);
+      //sprintf'ing a float doesn't seem to work so have to convert it to ints
+      real = basicMeasurements.AveragePower;
+      frac = trunc((basicMeasurements.AveragePower - real) * 10000);
+      sprintf(outBuff, "Average Power: %d.%04d kWh\n", real, frac);
       UART_OutString(outBuff);
       break;
     case TOTAL_ENERGY:
@@ -96,7 +102,9 @@ void HMI_Output()
       UART_OutString(outBuff);
       break;
     case TOTAL_COST:
-      sprintf(outBuff, "Total Cost: $%f\n", basicMeasurements.TotalCost);
+      real = basicMeasurements.TotalCost;
+      frac = trunc((basicMeasurements.TotalCost - real) * 10000);
+      sprintf(outBuff, "Total Cost: $%d.%02d\n", real, frac);
       UART_OutString(outBuff);
       break;
     case DORMANT:
@@ -104,10 +112,13 @@ void HMI_Output()
   }
 }
 
+//this is called every second by RTC
 void HMI_Tick()
 {
   if (++TimeTillDormant >= 16)
     DisplayState = DORMANT;
+  if (TimeTillDormant == 10)
+    HMI_Output();
 }
 
 void __attribute__ ((interrupt)) SW1_ISR(void)

@@ -13,17 +13,7 @@
 #include "Constants.h"
 #include "Measurements.h"
 
-typedef enum
-{
-  CMD_STARTUP = 0x04,      //Startup command
-  CMD_VERSION = 0x09,      //Tower version command
-  CMD_TNUMBER = 0x0B,      //command byte for tower number
-  CMD_TMODE = 0x0D,        //command byte for tower mode
-  CMD_PROGRAM_BYTE = 0x07, //Program byte into flash
-  CMD_READ_BYTE = 0x08,    //Read byte from Flash
-  CMD_TIME = 0x0C,         //Command byte for time
-  CMD_ANALOG_INPUT = 0x50, //Command byte for the ADC input value
-} CMD;
+
 
 // ----------------------------------------
 // Thread set up
@@ -45,11 +35,11 @@ typedef enum
 static const uint8_t ERASE_SECTOR = 0x08; //Param 3 of CMD program byte which tells tower to erase sector
 
 static const uint32_t BAUDRATE = 115200;
-static const int DEFAULT_TOWER_NUMBER = 1145;
+static const int DEFAULT_TOWER_NUMBER = 2939;
 static const int DEFAULT_TOWER_MODE = 1;
 
-const static int MAJ_VER = 5;
-const static int MIN_VER = 34;
+const static int MAJ_VER = 6;
+const static int MIN_VER = 99;
 
 //PIT light up every 500 ms
 const static uint32_t PIT_INTERVAL = ANALOG_SAMPLE_INTERVAL * 1000000; //ms to nanoseconds;

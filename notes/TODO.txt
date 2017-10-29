@@ -26,3 +26,7 @@ CH59 for GPIO
 Tower crashes on first run (or after building and flashing)
 	-Probably has to do with writing the tariffs on start up.
 	-There is an access error FSTAT[ACCERR] idk why lol
+	
+	
+	
+Ask if the tower should store the loaded tarrif

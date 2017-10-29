@@ -7,5 +7,11 @@ FTM to change state to dormant after 15 seconds
 RTC - to track day time
 PIT - changed to have the sampling interval under this.
 
+TODO:
+Tariff in flash
+Self Test
+phase shift
+
+
 void __attribute__ ((interrupt)) LPTimer_ISR(void);
 &LPTimer_ISR,            /* 0x65
