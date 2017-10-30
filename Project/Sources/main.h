@@ -23,11 +23,9 @@
 #define NB_ANALOG_CHANNELS 2
 
 #define ANALOG_SAMPLE_SIZE 16
-#define ANALOG_SAMPLE_INTERVAL 1.25
+#define ANALOG_SAMPLE_INTERVAL 1.25 // we get this value from: period: 1/50 = 20 ms, we need 16 samples per period atleast so: 20 / 16 = 1.25
 #define ANALOG_VOLTAGE_CHANNEL 0
 #define ANALOG_CURRENT_CHANNEL 1
-//display cycle interval in ms, so for 10 seconds = 1000 * 10
-#define DISPLAY_CYCLE_INTERVAL 10000
 
 /*!
  * Param 3 of CMD program byte which tells tower to erase sector
@@ -49,6 +47,7 @@ const static uint32_t PIT_INTERVAL = ANALOG_SAMPLE_INTERVAL * 1000000; //ms to n
 uint16union_t *TowerNumber; //FML Always uppercase first letter for globals
 uint16union_t *TowerMode;
 
-tariff_Ptr TariffsFlash;
+//this hold the tariff currently loaded in memory
+uint8_t *Tariff_Loaded;
 
 #endif

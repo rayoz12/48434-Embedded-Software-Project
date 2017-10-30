@@ -24,20 +24,13 @@ typedef struct
 
 typedef struct
 {
-  unsigned int TotalTime; //the time in seconds that we've been recording
+  uint64_t MeteringTime; //the time in seconds that we've been metering
   double AveragePower;
-  int TotalEnergy;
+  double TotalEnergy;
   double TotalCost;
+  uint64_t Time; //the current, we need our own local copy as in self test mode we need to be able to emulate time.
 } TMeasurementsBasic;
 
-typedef enum
-{
-  DORMANT,
-  METERING_TIME,
-  AVERAGE_POWER,
-  TOTAL_ENERGY,
-  TOTAL_COST
-} TDISPLAY_STATES;
 
 extern TSample Samples;
 

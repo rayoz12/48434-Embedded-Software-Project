@@ -42,7 +42,7 @@
 /*!
  * The length of the flash
  */
-#define FLASH_SIZE 24
+#define FLASH_SIZE 8
 /*!
  * the command to write a phrase to flash
  */
@@ -111,7 +111,11 @@ typedef struct
 /*!
  *	The value of a clear byte of Flash
  */
-#define CLEAR_DATA 0xFFFFu
+#define CLEAR_DATA1 0xFFu
+
+#define CLEAR_DATA2 0xFFFFu
+
+#define CLEAR_DATA4 0xFFFFFFFFu
 
 /*! @brief Enables the Flash module.
  *

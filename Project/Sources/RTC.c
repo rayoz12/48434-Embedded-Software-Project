@@ -83,7 +83,7 @@ bool RTC_Init(void (*userFunction)(void*), void* userArguments)
  *  @param seconds The desired value of the real rtcSeconds clock seconds (0-59).
  *  @note Assumes that the RTC module has been initialized and all input parameters are in range.
  */
-void RTC_Set(const uint8_t hours, const uint8_t minutes, const uint8_t seconds)
+void RTC_Set(const uint32_t hours, const uint8_t minutes, const uint8_t seconds)
 {
 	const int secondsInhour = 60 * 60;
 	const int secondsInDay = secondsInhour * 24;
@@ -91,23 +91,15 @@ void RTC_Set(const uint8_t hours, const uint8_t minutes, const uint8_t seconds)
 	//disable seconds rtcSecondsr
 	RTC_SR &= ~RTC_SR_TCE_MASK;
 	//take 2 consecutive reads to ensure accuracy.
-	int read1,read2, rtcReadSeconds, rtcWriteSeconds;
-	do
-	{
-		read1 = RTC_TSR;
-		read2 = RTC_TSR;
-	} while (read1 != read2);
+	int rtcWriteSeconds = 0;
 
-	rtcReadSeconds = read1;
 	//RTC_IER &= ~RTC_IER_TSIE_MASK; //disable interrupt per second
 	//get the last seconds since last day
-	int daySeconds = rtcReadSeconds % secondsInDay;
-	rtcWriteSeconds = rtcReadSeconds - daySeconds;
 
-	int hourSeconds, minuteSeconds;
-	hourSeconds = hours * secondsInhour;
-	minuteSeconds = minutes * 60;
-	rtcWriteSeconds += hourSeconds + minuteSeconds + seconds;
+	rtcWriteSeconds += hours * secondsInhour;
+	rtcWriteSeconds += minutes * 60;
+	rtcWriteSeconds += seconds;
+
 	RTC_TSR = rtcWriteSeconds; //write the new rtcSeconds
 
 	RTC_SR |= RTC_SR_TCE_MASK; //enable seconds rtcSecondsr
@@ -132,6 +124,20 @@ void RTC_Get(uint8_t* const hours, uint8_t* const minutes, uint8_t* const second
 	int rtcSeconds = read1;
 
   Format_Seconds_Hours(rtcSeconds, hours, minutes, seconds);
+}
+
+void RTC_Get_Raw_Seconds(uint32_t* const seconds)
+{
+  //to read a vaild result make sure to have 2 consecutive identical reads
+  int read1,read2;
+  do
+  {
+    read1 = RTC_TSR;
+    read2 = RTC_TSR;
+  } while (read1 != read2);
+  int rtcSeconds = read1;
+
+  *seconds = rtcSeconds;
 }
 
 void Format_Seconds_Hours(int totalSeconds, uint8_t* const hours, uint8_t* const minutes, uint8_t* const seconds)

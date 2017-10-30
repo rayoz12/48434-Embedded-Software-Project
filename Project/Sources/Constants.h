@@ -21,26 +21,32 @@ typedef struct {
     double secondNb;
     double thirdNb;
   } NonToU;
-} tariff_V;
+} Tariff_Values;
+
+typedef struct {
+  struct {
+    uint8_t start;
+    uint8_t end;
+  } peak;
+  struct {
+    uint8_t start;
+    uint8_t end;
+  } shoulder1;
+  struct {
+    uint8_t start;
+    uint8_t end;
+  } shoulder2;
+} Tariff_Time_Range;
+
+
+extern const uint8_t DEFAULT_TARIFF_LOADED;
 
 //tarrifs in the order: peak, shoulder, offPeak, secondNb, thirdNb
 extern const float TARIFFS[5];
 
-extern const tariff_V TARIFFS_STRUCT;
+extern const Tariff_Values TARIFFS_VALUES;
 
-//tariff struct which holds the pointers to the flash locations. defined in tower init
-typedef struct {
-  struct {
-    uint32_t *peak;
-    uint32_t *shoulder;
-    uint32_t *offPeak;
-  } ToU;
-  struct  {
-    uint32_t *secondNb;
-    uint32_t *thirdNb;
-  } NonToU;
-} tariff_Ptr;
-
+extern const Tariff_Time_Range TARIFF_TIME_RANGE;
 
 
 #endif

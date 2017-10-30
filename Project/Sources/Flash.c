@@ -100,23 +100,19 @@ bool Flash_Write32(volatile uint32_t* const address, const uint32_t data)
 {
   // we have to check that the address is 8 byte aligned, probably by using modulo.
   // this gets the word and the next word and calls Modify_Phrase to write data
-  uint32_t offset = (uint32_t)address - (uint32_t)FLASH_DATA_START;
-  uint32_t sector = offset / 8;
-  uint32_t sectorStart = (uint32_t)FLASH_DATA_START + (SECTOR_SIZE * sector);//get address at start of sector
-
-  uint32_t index = (uint32_t)address - sectorStart;
-  uint32_t divby4 = (uint32_t)address % 4;
+  uint32_t index = (uint32_t)address-(uint32_t)FLASH_DATA_START;
+  uint32_t divby4 = (uint32_t)address%4;
   uint64union_t bit64;
-  if (divby4 == 0)
+  if(divby4 == 0)
   {
-    if (index > 3)
+    if(index > 3)
     {
       bit64.s32.Hi = data;
-      bit64.s32.Lo = *(address - 1);
+      bit64.s32.Lo = *(address-1);
     }
     else
     {
-      bit64.s32.Hi = *(address + 1);
+      bit64.s32.Hi = *(address+1);
       bit64.s32.Lo = data;
     }
   }
@@ -124,9 +120,7 @@ bool Flash_Write32(volatile uint32_t* const address, const uint32_t data)
   {
     return false;
   }
-//  assert((uint32_t)address % 64 == 0); //ensure that the address is 64 bit or sector aligned.
-  //change this to start of sector
-  return ModifyPhrase(sectorStart, bit64);
+  return ModifyPhrase((uint32_t)FLASH_DATA_START, bit64);
 }
 
 /*! @brief Writes a 16-bit number to Flash.
@@ -139,25 +133,21 @@ bool Flash_Write32(volatile uint32_t* const address, const uint32_t data)
 bool Flash_Write16(volatile uint16_t* const address, const uint16_t data)
 {
   //combine the passed 16 bit (half-word) with the next 16 bit block to call _Write32
-  uint32_t offset = (uint32_t)address - (uint32_t)FLASH_DATA_START;
-  uint32_t sector = offset / 8;
-  uint32_t sectorStart = (uint32_t)FLASH_DATA_START + (SECTOR_SIZE * sector);//get address at start of sector
-
-  uint32_t index = (uint32_t)address - sectorStart;
-  uint32_t odd = (uint32_t)address % 2;
+  uint32_t index = (uint32_t)address-(uint32_t)FLASH_DATA_START;
+  uint32_t odd = (uint32_t)address%2;
   uint32union_t bit32;
-  if (!odd)
+  if(!odd)
   {
-    if (index == 2 || index == 6)
+    if(index == 2 || index == 6)
     {
-      bit32.s.Lo = *(address - 1);
+      bit32.s.Lo = *(address-1);
       bit32.s.Hi = data;
-      return Flash_Write32((uint32_t *)(address - 1), bit32.l);
+      return Flash_Write32((uint32_t *)(address-1), bit32.l);
     }
     else
     {
       bit32.s.Lo = data;
-      bit32.s.Hi = *(address + 1);
+      bit32.s.Hi = *(address+1);
       return Flash_Write32((uint32_t *)(address), bit32.l);
     }
   }
@@ -181,19 +171,20 @@ bool Flash_Write16(volatile uint16_t* const address, const uint16_t data)
  */
 bool Flash_Write8(volatile uint8_t* const address, const uint8_t data)
 {
-  uint32_t evenAddress = ((uint32_t)address % 2) == 0;
+  // combine the passed 8 bit (byte) with the next byte to call _Write16
+  uint32_t odd = (uint32_t)address%2;
   uint16union_t bit16;
-  if (evenAddress)
+  if(!odd)
   {
     bit16.s.Lo = data;
-    bit16.s.Hi = *(address + 1);
+    bit16.s.Hi = *(address+1);
     return Flash_Write16((uint16_t *)(address), bit16.l);
   }
   else
   {
-    bit16.s.Lo = *(address - 1);
+    bit16.s.Lo = *(address-1);
     bit16.s.Hi = data;
-    return Flash_Write16((uint16_t *)(address - 1), bit16.l);
+    return Flash_Write16((uint16_t *)(address-1), bit16.l);
   }
 }
 
@@ -204,10 +195,7 @@ bool Flash_Write8(volatile uint8_t* const address, const uint8_t data)
  */
 bool Flash_Erase(void)
 {
-  bool success = true;
-  for (int i=0;i < FLASH_SIZE;i+=8)
-    success = success && EraseSector(FLASH_DATA_START + i);
-  return success;
+  return EraseSector(FLASH_DATA_START);
 }
 
 /*! @brief Higher level function which calls erase and write.
@@ -217,7 +205,7 @@ bool Flash_Erase(void)
 static bool ModifyPhrase(const uint32_t address, const uint64union_t phrase)
 {
   //this calls EraseSector and writePhrase. We don't care about mismatched size cos only writing to one phrase.
-  if (!EraseSector(address))
+  if (!EraseSector(FLASH_DATA_START))
     return false;
   return WritePhrase(address, phrase);
 }
@@ -238,6 +226,7 @@ static bool WritePhrase(const uint32_t address, const uint64union_t phrase)
     FTFE_FSTAT = FTFE_FSTAT_ACCERR_MASK;
   if (FTFE_FSTAT & FTFE_FSTAT_FPVIOL_MASK)
     FTFE_FSTAT = FTFE_FSTAT_FPVIOL_MASK;
+
 
   //write to TFFCOB struct with command
   TFCCOB phraseWrite;
@@ -267,38 +256,33 @@ static bool EraseSector(const uint32_t address)
 static bool LaunchCommand(TFCCOB* commonCommandObject)
 {
   //write command and address
-  FTFE_FCCOB3 = commonCommandObject->addressReg.ADRStruct.reg0;	//handles translating to big endian.
+  FTFE_FCCOB3 = commonCommandObject->addressReg.ADRStruct.reg0; //handles translating to big endian.
   FTFE_FCCOB2 = commonCommandObject->addressReg.ADRStruct.reg1;
   FTFE_FCCOB1 = commonCommandObject->addressReg.ADRStruct.reg2;
   FTFE_FCCOB0 = commonCommandObject->cmd;
 
   //write data;
-  FTFE_FCCOB4 = commonCommandObject->data.s8.Lo4;	//e
-  FTFE_FCCOB5 = commonCommandObject->data.s8.Lo3;	//f
-  FTFE_FCCOB6 = commonCommandObject->data.s8.Lo2;	//g
-  FTFE_FCCOB7 = commonCommandObject->data.s8.Lo1;	//h
+  FTFE_FCCOB4 = commonCommandObject->data.s8.Lo4;//e
+  FTFE_FCCOB5 = commonCommandObject->data.s8.Lo3;//f
+  FTFE_FCCOB6 = commonCommandObject->data.s8.Lo2;//g
+  FTFE_FCCOB7 = commonCommandObject->data.s8.Lo1;//h
 
-  FTFE_FCCOB8 = commonCommandObject->data.s8.Hi4;	//a
-  FTFE_FCCOB9 = commonCommandObject->data.s8.Hi3;	//b
-  FTFE_FCCOBA = commonCommandObject->data.s8.Hi2;	//c
-  FTFE_FCCOBB = commonCommandObject->data.s8.Hi1;	//d
+  FTFE_FCCOB8 = commonCommandObject->data.s8.Hi4;//a
+  FTFE_FCCOB9 = commonCommandObject->data.s8.Hi3;//b
+  FTFE_FCCOBA = commonCommandObject->data.s8.Hi2;//c
+  FTFE_FCCOBB = commonCommandObject->data.s8.Hi1;//d
 
-  FTFE_FSTAT = FTFE_FSTAT_CCIF_MASK; // Launch command sequence, by clearing CCIF
-  while (!(FTFE_FSTAT & FTFE_FSTAT_CCIF_MASK))
-  {
-  }	// wait until the command is complete.
+  FTFE_FSTAT = FTFE_FSTAT_CCIF_MASK;          // Launch command sequence, by clearing CCIF
+  while(!(FTFE_FSTAT & FTFE_FSTAT_CCIF_MASK)){} // wait until the command is complete.
 
-  return !(FTFE_FSTAT & FTFE_FSTAT_ACCERR_MASK
-      || FTFE_FSTAT & FTFE_FSTAT_FPVIOL_MASK); //return the result of the command, it will be false when either of the bits are set to true.
+  return !(FTFE_FSTAT & FTFE_FSTAT_ACCERR_MASK || FTFE_FSTAT & FTFE_FSTAT_FPVIOL_MASK); //return the result of the command, it will be false when either of the bits are set to true.
 }
 
 /*! @brief Function which allocates data to its corresponding FTFE_FCCOB register
  *
  *  @return void
  */
-static void ContructPhraseWriteCommand(TFCCOB* commonCommandObject,
-                                       const uint32_t address,
-                                       const uint64union_t phrase)
+static void ContructPhraseWriteCommand(TFCCOB* commonCommandObject, const uint32_t address, const uint64union_t phrase)
 {
   commonCommandObject->addressReg.address = address;
   commonCommandObject->data = phrase;

@@ -48,6 +48,26 @@ static bool ReadFunction();
  */
 static bool TimeFunction();
 
+static bool TestModePacket();
+
+static bool TarrifPacket();
+
+static bool TimePacket();
+
+static bool PowerPacket();
+
+static bool EnergyPacket();
+
+static bool CostPacket();
+
+static bool FrequencyPacket();
+
+static bool VoltageRMSPacket();
+
+static bool CurrentRMSPacket();
+
+static bool PowerFactorPacket();
+
 
 
 /*! @brief Allows the user to write on a particular flash address.
@@ -96,6 +116,39 @@ void TowerProtocol_Handle_Packet()
       break;
     case CMD_TIME:
       success = TimeFunction();
+      break;
+    case CMD_TEST_MODE:
+      success = TestModePacket();
+      break;
+    case CMD_TARIFF:
+      success = TarrifPacket();
+      break;
+    case CMD_TIME1:
+      success = TimePacket(1);
+      break;
+    case CMD_TIME2:
+      success = TimePacket(2);
+      break;
+    case CMD_POWER:
+      success = PowerPacket();
+      break;
+    case CMD_ENERGY:
+      success = EnergyPacket();
+      break;
+    case CMD_COST:
+      success = CostPacket();
+      break;
+    case CMD_FREQUENCY:
+      success = FrequencyPacket();
+      break;
+    case CMD_VOLTAGE_RMS:
+      success = VoltageRMSPacket();
+      break;
+    case CMD_CURRENT_RMS:
+      success = CurrentRMSPacket();
+      break;
+    case CMD_POWER_FACTOR:
+      success = PowerFactorPacket();
       break;
     default:
       Packet_Put(Packet_Command, 'N', '/', 'A');
@@ -253,6 +306,62 @@ bool Handle_Startup_Packet()
   Packet_Put(CMD_TMODE, 1, TowerMode->s.Lo, TowerMode->s.Hi);
 
   return true;
+}
+
+bool TestModePacket()
+{
+  if (Packet_Parameter1 == 0)
+    IsSelfTesting = false;
+  else if (Packet_Parameter1 == 1)
+    IsSelfTesting = true;
+  else
+    return false;
+  return true;
+}
+
+bool TarrifPacket()
+{
+
+}
+
+bool TimePacket()
+{
+
+}
+
+bool PowerPacket()
+{
+
+}
+
+bool EnergyPacket()
+{
+
+}
+
+bool CostPacket()
+{
+
+}
+
+bool FrequencyPacket()
+{
+
+}
+
+bool VoltageRMSPacket()
+{
+
+}
+
+bool CurrentRMSPacket()
+{
+
+}
+
+bool PowerFactorPacket()
+{
+
 }
 
 //we need to ask if we need to check that the address is taken or not.

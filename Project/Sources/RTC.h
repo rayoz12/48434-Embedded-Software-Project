@@ -35,7 +35,7 @@ bool RTC_Init(void (*userFunction)(void*), void* userArguments);
  *  @param seconds The desired value of the real time clock seconds (0-59).
  *  @note Assumes that the RTC module has been initialized and all input parameters are in range.
  */
-void RTC_Set(const uint8_t hours, const uint8_t minutes, const uint8_t seconds);
+void RTC_Set(const uint32_t hours, const uint8_t minutes, const uint8_t seconds);
 
 /*! @brief Gets the value of the real time clock.
  *
@@ -45,6 +45,8 @@ void RTC_Set(const uint8_t hours, const uint8_t minutes, const uint8_t seconds);
  *  @note Assumes that the RTC module has been initialized.
  */
 void RTC_Get(uint8_t* const hours, uint8_t* const minutes, uint8_t* const seconds);
+
+void RTC_Get_Raw_Seconds(uint32_t* const seconds);
 
 void Format_Seconds_Hours(int totalSeconds, uint8_t* const hours, uint8_t* const minutes, uint8_t* const seconds);
 

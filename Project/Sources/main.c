@@ -57,6 +57,8 @@
 // Analog functions
 #include "analog.h"
 
+bool IsSelfTesting;
+
 // Thread stacks
 static uint32_t AnalogThreadStacks[NB_ANALOG_CHANNELS][THREAD_STACK_SIZE] __attribute__ ((aligned(0x08)));
 OS_THREAD_STACK(TowerInitThreadStack, THREAD_STACK_SIZE); /*!< The stack for the Tower Init thread. */
@@ -168,32 +170,28 @@ void InputConditioning(int16_t voltage, int16_t current, float *voltageOut, floa
 
 void AllocateFlash()
 {
-  //allocate tariffs
-  //convert floating tariffs to Fixed
-  Fixed32Q24 converted[5];
-  for (int i = 0; i < 5; i++)
-  {
-    converted[i] = FloatToFixed(TARIFFS[i]);
-  }
-  const int allocationSize = 4;
-//  Flash_AllocateVar((void *) &TariffsFlash.ToU.peak, allocationSize);
-//  Flash_AllocateVar((void *) &TariffsFlash.ToU.shoulder, allocationSize);
-//  Flash_AllocateVar((void *) &TariffsFlash.ToU.offPeak, allocationSize);
-//  Flash_AllocateVar((void *) &TariffsFlash.NonToU.secondNb, allocationSize);
-//  Flash_AllocateVar((void *) &TariffsFlash.NonToU.thirdNb, allocationSize);
-//
-//  //write converted tariffs
-//  if (*TariffsFlash.ToU.peak == 0xffffffff)
-//    Flash_Write32((uint32_t *) TariffsFlash.ToU.peak, converted[0].fixed.f);
-//  if (*TariffsFlash.ToU.shoulder == 0xffffffff)
-//    Flash_Write32((uint32_t *) TariffsFlash.ToU.shoulder, converted[1].fixed.f);
-//  if (*TariffsFlash.ToU.offPeak == 0xffffffff)
-//    Flash_Write32((uint32_t *) TariffsFlash.ToU.offPeak, converted[2].fixed.f);
-//  if (*TariffsFlash.NonToU.secondNb == 0xffffffff)
-//    Flash_Write32((uint32_t *) TariffsFlash.NonToU.secondNb, converted[3].fixed.f);
-//  if (*TariffsFlash.NonToU.thirdNb == 0xffffffff)
-//    Flash_Write32((uint32_t *) TariffsFlash.NonToU.thirdNb, converted[4].fixed.f);
+  //  allocate the number and mode as the first 2 16bit spots in memory.
+  Flash_AllocateVar((void *) &TowerNumber, 2);
+  Flash_AllocateVar((void *) &TowerMode, 2);
 
+  if (TowerNumber->l == CLEAR_DATA2)
+  {
+    //there is no number stored here the memory is clear, so we need to write the number
+    Flash_Write16((uint16_t *) TowerNumber, DEFAULT_TOWER_NUMBER);
+  }
+  if (TowerMode->l == CLEAR_DATA2)
+  {
+    //there is no number stored here the memory is clear, so we need to write the number
+    Flash_Write16((uint16_t *) TowerMode, DEFAULT_TOWER_MODE);
+  }
+
+  //allocate the currently loaded tariff number
+  Flash_AllocateVar((void *) &Tariff_Loaded, 1);
+
+  if (*Tariff_Loaded == CLEAR_DATA1)
+  {
+    Flash_Write8((uint8_t *) Tariff_Loaded, DEFAULT_TARIFF_LOADED);
+  }
 }
 
 /*! @brief Initialises the tower by setting up the Baud rate, Flash, LED's and the tower number
@@ -217,7 +215,7 @@ void TowerInit(void *pData)
     bool AnalogSuccess = Analog_Init(CPU_BUS_CLK_HZ); //added by john <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     bool MeasurementsSuccess = Measurements_Init();
     bool HMISuccess = HMI_Init();
-    bool LPTSuccess = LPTMRInit(DISPLAY_CYCLE_INTERVAL);// Initialise the low power timer to tick every 10 s
+//    bool LPTSuccess = LPTMRInit(DISPLAY_CYCLE_INTERVAL);// Initialise the low power timer to tick every 10 s
 
     success = packetSuccess && flashSuccess && LEDSuccess && RTCSuccess
         && FTMSuccess && FTMLEDSetSuccess && PITSuccess && AnalogSuccess
@@ -226,20 +224,7 @@ void TowerInit(void *pData)
   while (!success);
 
 
-//  allocate the number and mode as the first 2 16bit spots in memory.
-  Flash_AllocateVar((void *) &TowerNumber, 2);
-  Flash_AllocateVar((void *) &TowerMode, 2);
 
-  if (TowerNumber->l == CLEAR_DATA)
-  {
-    //there is no number stored here the memory is clear, so we need to write the number
-    Flash_Write16((uint16_t *) TowerNumber, DEFAULT_TOWER_NUMBER);
-  }
-  if (TowerMode->l == CLEAR_DATA)
-  {
-    //there is no number stored here the memory is clear, so we need to write the number
-    Flash_Write16((uint16_t *) TowerMode, DEFAULT_TOWER_MODE);
-  }
   //allocate the tariffs
   AllocateFlash();
 
@@ -251,6 +236,9 @@ void TowerInit(void *pData)
 
   //send 3 startup packets as stated by spec sheet
   Handle_Startup_Packet();
+
+  //TODO Delete me from final code, to be set from tower protocol
+//  IsSelfTesting = true;
 
   // We only do this once - therefore delete this thread
   OS_ThreadDelete(OS_PRIORITY_SELF);
@@ -283,9 +271,12 @@ int main(void)
   error = OS_ThreadCreate(FTMCallback0, NULL,
                           &FTM0ThreadStack[THREAD_STACK_SIZE - 1], 7); //create FTM0 thread
   error = OS_ThreadCreate(RTCThread, NULL,
-                          &RTCThreadStack[THREAD_STACK_SIZE - 1], 8); //create RTC thread
+                          &RTCThreadStack[THREAD_STACK_SIZE - 1], 9); //create RTC thread
 //  error = OS_ThreadCreate(LPTCallback, NULL,
-//                          &LPTThreadStack[THREAD_STACK_SIZE - 1], 9); //create RTC thread
+//                          &LPTThreadStack[THREAD_STACK_SIZE - 1], 9); //create LPT thread
+  error = OS_ThreadCreate(HMI_Cycle_Display_Thread, NULL,
+                          &HMIThreadStack[THREAD_STACK_SIZE - 1], 8); //create HMI thread
+
 
   // Start multithreading - never returns!
   OS_Start();
@@ -316,11 +307,22 @@ void RTCThread(void* arg)
     OS_SemaphoreWait(RTCSemaphore, 0);
 
     LEDs_Toggle(LED_YELLOW);
-//    uint8_t hours, minutes, seconds;
-//    RTC_Get(&hours, &minutes, &seconds);
-//    Packet_Put(CMD_TIME, hours, minutes, seconds);
+    uint8_t hours, minutes, seconds;
+    RTC_Get(&hours, &minutes, &seconds);
+    //every 30 seconds send time
+    if (seconds % 30 == 0)
+      Packet_Put(CMD_TIME, hours, minutes, seconds);
 
-    basicMeasurements.TotalTime++;
+    if (!IsSelfTesting)
+    {
+      basicMeasurements.MeteringTime++;
+      basicMeasurements.Time++;
+    }
+    else
+    {
+      basicMeasurements.MeteringTime += 60 * 60;//add 1 hour every second under self test mode
+      basicMeasurements.Time += 60 * 60;
+    }
 
     //here we also increment the seconds until dormant
     HMI_Tick();

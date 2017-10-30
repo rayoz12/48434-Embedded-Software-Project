@@ -24,11 +24,11 @@ static TDISPLAY_STATES DisplayState;
 
 bool HMI_Init()
 {
-  OS_ECB *SW1Semaphore = OS_SemaphoreCreate(0);
+  SW1Semaphore = OS_SemaphoreCreate(0);
 
   TimeTillDormant = 0;
 
-  DisplayState = METERING_TIME;
+  DisplayState = DORMANT;
 
   //SW1 is on portD 0
   SIM_SCGC5 |= SIM_SCGC5_PORTD_MASK; //turn on port D
@@ -39,7 +39,6 @@ bool HMI_Init()
   PORTD_PCR0 |= PORT_PCR_ISF_MASK; //clear any past interrupt
   PORTD_PCR0 |= PORT_PCR_IRQC(0b1010);//set to falling edge interrupt
 
-//  //Set Pull-up Resistors
   PORTD_PCR0 |= PORT_PCR_PE_MASK; //we need pull up resistors to make sure the input is correct
   PORTD_PCR0 |= PORT_PCR_PS_MASK;
 
@@ -50,6 +49,15 @@ bool HMI_Init()
 
   //have to w1c on interrupt status flags in PCR[24]
   return true;
+}
+
+void HMI_Cycle_Display_Thread(void *args)
+{
+  for (;;)
+  {
+    OS_SemaphoreWait(SW1Semaphore, 0);
+    HMI_Cycle_Display();
+  }
 }
 
 
@@ -81,13 +89,16 @@ void HMI_Cycle_Display()
 void HMI_Output()
 {
   //cycle display
-  uint8_t hours, minutes, seconds, outBuff[256];
+  uint8_t days, hours, minutes, seconds, outBuff[256];
   int real, frac;
   switch (DisplayState)
   {
     case METERING_TIME:
-      Format_Seconds_Hours(basicMeasurements.TotalTime, &hours, &minutes, &seconds);
-      sprintf(outBuff, "Metering Time: %02d:%02d:%02d\n", hours, minutes, seconds);
+      Format_Seconds_Days(basicMeasurements.MeteringTime, &days, &hours, &minutes, &seconds);
+      if (!(days > 99))
+        sprintf(outBuff, "Metering Time: %02d:%02d:%02d:%02d\n", days, hours, minutes, seconds);
+      else
+        sprintf(outBuff, "Metering Time: xx:xx:xx:xx\n", days, hours, minutes, seconds);
       UART_OutString(outBuff);
       break;
     case AVERAGE_POWER:
@@ -98,13 +109,18 @@ void HMI_Output()
       UART_OutString(outBuff);
       break;
     case TOTAL_ENERGY:
-      sprintf(outBuff, "Total Energy: %d kW\n", basicMeasurements.TotalEnergy);
+      real = basicMeasurements.TotalEnergy;
+      frac = trunc((basicMeasurements.TotalEnergy - real) * 1000000);
+      sprintf(outBuff, "Total Energy: %d.%04d kW\n",  real, frac);
       UART_OutString(outBuff);
       break;
     case TOTAL_COST:
       real = basicMeasurements.TotalCost;
       frac = trunc((basicMeasurements.TotalCost - real) * 10000);
-      sprintf(outBuff, "Total Cost: $%d.%02d\n", real, frac);
+      if (!(real > 9999))
+        sprintf(outBuff, "Total Cost: $%d.%02d\n", real, frac);
+      else
+        sprintf(outBuff, "Total Cost: $xxxx.xx\n", real, frac);
       UART_OutString(outBuff);
       break;
     case DORMANT:
@@ -117,8 +133,7 @@ void HMI_Tick()
 {
   if (++TimeTillDormant >= 16)
     DisplayState = DORMANT;
-  if (TimeTillDormant == 10)
-    HMI_Output();
+  HMI_Output();
 }
 
 void __attribute__ ((interrupt)) SW1_ISR(void)
@@ -131,7 +146,9 @@ void __attribute__ ((interrupt)) SW1_ISR(void)
 //    PORTD_PCR0 |= PORT_PCR_ISF_MASK;
     PORTD_ISFR |= PORT_ISFR_ISF(0);
 
-    HMI_Cycle_Display();
+//    HMI_Cycle_Display();
+
+    OS_SemaphoreSignal(SW1Semaphore);
 
 
   }

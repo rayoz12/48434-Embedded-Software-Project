@@ -20,6 +20,18 @@ typedef enum
   CMD_READ_BYTE = 0x08,    //Read byte from Flash
   CMD_TIME = 0x0C,         //Command byte for time
   CMD_ANALOG_INPUT = 0x50, //Command byte for the ADC input value
+  //project DEM extensions
+  CMD_TEST_MODE = 0x10,
+  CMD_TARIFF = 0x11,
+  CMD_TIME1 = 0x12,
+  CMD_TIME2 = 0x13,
+  CMD_POWER = 0x14,
+  CMD_ENERGY = 0x15,
+  CMD_COST = 0x16,
+  CMD_FREQUENCY = 0x17,
+  CMD_VOLTAGE_RMS = 0x18,
+  CMD_CURRENT_RMS = 0x19,
+  CMD_POWER_FACTOR = 0x1A,
 } CMD;
 
 void TowerProtocol_Handle_Packet();

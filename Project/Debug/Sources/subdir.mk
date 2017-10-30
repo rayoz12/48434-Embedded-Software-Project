@@ -15,6 +15,7 @@ C_SRCS += \
 ../Sources/Measurements.c \
 ../Sources/PIT.c \
 ../Sources/RTC.c \
+../Sources/SelfTest.c \
 ../Sources/TowerProtocol.c \
 ../Sources/UART.c \
 ../Sources/main.c \
@@ -32,6 +33,7 @@ OBJS += \
 ./Sources/Measurements.o \
 ./Sources/PIT.o \
 ./Sources/RTC.o \
+./Sources/SelfTest.o \
 ./Sources/TowerProtocol.o \
 ./Sources/UART.o \
 ./Sources/main.o \
@@ -49,6 +51,7 @@ C_DEPS += \
 ./Sources/Measurements.d \
 ./Sources/PIT.d \
 ./Sources/RTC.d \
+./Sources/SelfTest.d \
 ./Sources/TowerProtocol.d \
 ./Sources/UART.d \
 ./Sources/main.d \
@@ -59,7 +62,7 @@ C_DEPS += \
 Sources/%.o: ../Sources/%.c
 	@echo 'Building file: $<'
 	@echo 'Invoking: Cross ARM C Compiler'
-	arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -O0 -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections  -g3 -I"C:\Users\98112939\Documents\PortableGit\home\portable\48434-Embedded-Software-Project\Project\Library" -I"C:/Users/98112939/Documents/PortableGit/home/portable/48434-Embedded-Software-Project/Project/Static_Code/IO_Map" -I"C:/Users/98112939/Documents/PortableGit/home/portable/48434-Embedded-Software-Project/Project/Sources" -I"C:/Users/98112939/Documents/PortableGit/home/portable/48434-Embedded-Software-Project/Project/Generated_Code" -std=c99 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -c -o "$@" "$<"
+	arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -O0 -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections  -g3 -I"C:\Users\98112939\Documents\48434-Embedded-Software-Project\Project\Library" -I"C:/Users/98112939/Documents/48434-Embedded-Software-Project/Project/Static_Code/IO_Map" -I"C:/Users/98112939/Documents/48434-Embedded-Software-Project/Project/Sources" -I"C:/Users/98112939/Documents/48434-Embedded-Software-Project/Project/Generated_Code" -std=c99 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -c -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
