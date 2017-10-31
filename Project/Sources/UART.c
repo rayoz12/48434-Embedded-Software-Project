@@ -124,6 +124,7 @@ bool UART_OutChar(const uint8_t data)
 
 bool UART_OutString(const uint8_t data[])
 {
+  OS_DisableInterrupts();
   uint8_t currentChar = data[0];
   int i = 0;
   do
@@ -131,6 +132,7 @@ bool UART_OutString(const uint8_t data[])
     FIFO_Put(&TxFIFO, currentChar);
     currentChar = data[++i];
   } while(currentChar != '\0');
+  OS_EnableInterrupts();
   return true;
 }
 

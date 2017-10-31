@@ -155,8 +155,8 @@ void __attribute__ ((interrupt)) FTM0_ISR(void)
 			FTM0_CnSC(channel) &= ~FTM_CnSC_CHIE_MASK;
 			//Signal the semaphore in this channel. A function should wait for the semaphore in this channel
 			OS_SemaphoreSignal(FTMSemaphore[channel]);
-//			if (UserFunctions[channel])
-//				(*UserFunctions[channel])(UserArguments[channel]);
+			if (UserFunctions[channel])
+				(*UserFunctions[channel])(UserArguments[channel]);
 		}
 
 	}

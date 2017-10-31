@@ -11,6 +11,10 @@
 #include "main.h"
 #include "Flash.h"
 #include "RTC.h"
+#include "SelfTest.h"
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
 
 /*! @brief Sends the tower version packet
  *
@@ -52,7 +56,7 @@ static bool TestModePacket();
 
 static bool TarrifPacket();
 
-static bool TimePacket();
+static bool TimePacket(uint8_t timeVal);
 
 static bool PowerPacket();
 
@@ -164,7 +168,7 @@ void TowerProtocol_Handle_Packet()
     else
       Packet_Put(Packet_Command, Packet_Parameter1, Packet_Parameter2,
       Packet_Parameter3);
-}
+ }
 
 /*! @brief Calls the startup function to send the start up packets (i.e. startup, version and tower number)
  *
@@ -311,9 +315,9 @@ bool Handle_Startup_Packet()
 bool TestModePacket()
 {
   if (Packet_Parameter1 == 0)
-    IsSelfTesting = false;
+    SelfTest_Set_SelfTest(false);
   else if (Packet_Parameter1 == 1)
-    IsSelfTesting = true;
+    SelfTest_Set_SelfTest(true);
   else
     return false;
   return true;
@@ -321,47 +325,100 @@ bool TestModePacket()
 
 bool TarrifPacket()
 {
+  //get which tariff is selected and write to flash
+  uint8_t tariffIndex;
+  if (tariffIndex >= 1 && tariffIndex <= 3)
+  {
+    //write to flash
+    return Flash_Write8((uint8_t *) Tariff_Loaded, DEFAULT_TARIFF_LOADED);
 
+  }
+  else
+    return false;
 }
 
-bool TimePacket()
+bool TimePacket(uint8_t timeVal)
 {
-
+  uint8_t days, hours, minutes, seconds;
+  RTC_Format_Seconds_Days(BasicMeasurements.MeteringTime, &days, &hours, &minutes, &seconds);
+  if (timeVal == 1)
+  {
+    //send secs and minutes
+    Packet_Put(CMD_TIME1, seconds, minutes, 0);
+    return true;
+  }
+  else if (timeVal == 2)
+  {
+    //send hours and days
+    Packet_Put(CMD_TIME2, hours, days, 0);
+    return true;
+  }
+  else
+    return false;
 }
 
 bool PowerPacket()
 {
-
+  uint16union_t power;
+  power.l = (uint16_t) BasicMeasurements.AveragePower;
+  Packet_Put(CMD_POWER, power.s.Lo, power.s.Hi, 0);
+  return true;
 }
 
 bool EnergyPacket()
 {
-
+  uint16union_t energy;
+  energy.l = (uint16_t) BasicMeasurements.TotalEnergy;
+  Packet_Put(CMD_POWER, energy.s.Lo, energy.s.Hi, 0);
+  return true;
 }
 
 bool CostPacket()
 {
-
+  int real, frac;
+  real = BasicMeasurements.TotalCost;
+  frac = trunc((BasicMeasurements.TotalCost - real) * 100);
+  if (real > 255)
+  {
+    uint16union_t dollars;
+    dollars.l = real;
+    Packet_Put(CMD_POWER, frac, dollars.s.Lo, dollars.s.Hi);
+  }
+  else
+    Packet_Put(CMD_POWER, frac, real, 0);
+  return true;
 }
 
 bool FrequencyPacket()
 {
-
+  uint16union_t frequency;
+  frequency.l = (uint16_t) IntermediateMeasurements.Frequency;
+  Packet_Put(CMD_POWER, frequency.s.Lo, frequency.s.Hi, 0);
+  return true;
 }
 
 bool VoltageRMSPacket()
 {
-
+  uint16union_t voltageRMS;
+  voltageRMS.l = (uint16_t) IntermediateMeasurements.RMSVoltage;
+  Packet_Put(CMD_POWER, voltageRMS.s.Lo, voltageRMS.s.Hi, 0);
+  return true;
 }
 
 bool CurrentRMSPacket()
 {
-
+  uint16union_t currentRMS;
+  currentRMS.l = (uint16_t) IntermediateMeasurements.RMSCurrent;
+  Packet_Put(CMD_POWER, currentRMS.s.Lo, currentRMS.s.Hi, 0);
+  return true;
 }
 
 bool PowerFactorPacket()
 {
-
+  uint16union_t powerFactor;
+  powerFactor.l = (uint16_t) IntermediateMeasurements.PowerFactor;
+  Packet_Put(CMD_POWER, powerFactor.s.Lo, powerFactor.s.Hi, 0);
+  return true;
 }
 
 //we need to ask if we need to check that the address is taken or not.

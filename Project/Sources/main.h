@@ -12,6 +12,7 @@
 #include "OS.h"
 #include "Constants.h"
 #include "Measurements.h"
+#include "FTM.h"
 
 
 
@@ -42,6 +43,8 @@ const static int MIN_VER = 99;
 //PIT light up every 500 ms
 const static uint32_t PIT_INTERVAL = ANALOG_SAMPLE_INTERVAL * 1000000; //ms to nanoseconds;
 
+extern const TFTMChannel SW1_Debounce_Timer;
+
 
 //ASK IF BETWEEN BUILDS THE FLASH IS ERASED - It is.
 uint16union_t *TowerNumber; //FML Always uppercase first letter for globals
@@ -49,5 +52,7 @@ uint16union_t *TowerMode;
 
 //this hold the tariff currently loaded in memory
 uint8_t *Tariff_Loaded;
+
+extern bool IsSelfTesting;
 
 #endif

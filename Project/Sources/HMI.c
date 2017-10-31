@@ -9,6 +9,8 @@
 #include "HMI.h"
 #include "OS.h"
 #include "RTC.h"
+#include "FTM.h"
+#include "main.h"
 #include "Measurements.h"
 #include <stdio.h>
 #include <string.h>
@@ -16,6 +18,8 @@
 #include "UART.h"
 
 OS_ECB *SW1Semaphore;
+
+bool DebounceActive;
 
 static uint8_t TimeTillDormant;
 
@@ -27,6 +31,8 @@ bool HMI_Init()
   SW1Semaphore = OS_SemaphoreCreate(0);
 
   TimeTillDormant = 0;
+
+  DebounceActive = false;
 
   DisplayState = DORMANT;
 
@@ -94,7 +100,7 @@ void HMI_Output()
   switch (DisplayState)
   {
     case METERING_TIME:
-      Format_Seconds_Days(basicMeasurements.MeteringTime, &days, &hours, &minutes, &seconds);
+      RTC_Format_Seconds_Days(BasicMeasurements.MeteringTime, &days, &hours, &minutes, &seconds);
       if (!(days > 99))
         sprintf(outBuff, "Metering Time: %02d:%02d:%02d:%02d\n", days, hours, minutes, seconds);
       else
@@ -103,20 +109,20 @@ void HMI_Output()
       break;
     case AVERAGE_POWER:
       //sprintf'ing a float doesn't seem to work so have to convert it to ints
-      real = basicMeasurements.AveragePower;
-      frac = trunc((basicMeasurements.AveragePower - real) * 10000);
+      real = BasicMeasurements.AveragePower;
+      frac = trunc((BasicMeasurements.AveragePower - real) * 10000);
       sprintf(outBuff, "Average Power: %d.%04d kWh\n", real, frac);
       UART_OutString(outBuff);
       break;
     case TOTAL_ENERGY:
-      real = basicMeasurements.TotalEnergy;
-      frac = trunc((basicMeasurements.TotalEnergy - real) * 1000000);
+      real = BasicMeasurements.TotalEnergy;
+      frac = trunc((BasicMeasurements.TotalEnergy - real) * 1000000);
       sprintf(outBuff, "Total Energy: %d.%04d kW\n",  real, frac);
       UART_OutString(outBuff);
       break;
     case TOTAL_COST:
-      real = basicMeasurements.TotalCost;
-      frac = trunc((basicMeasurements.TotalCost - real) * 10000);
+      real = BasicMeasurements.TotalCost;
+      frac = trunc((BasicMeasurements.TotalCost - real) * 100);
       if (!(real > 9999))
         sprintf(outBuff, "Total Cost: $%d.%02d\n", real, frac);
       else
@@ -146,11 +152,13 @@ void __attribute__ ((interrupt)) SW1_ISR(void)
 //    PORTD_PCR0 |= PORT_PCR_ISF_MASK;
     PORTD_ISFR |= PORT_ISFR_ISF(0);
 
+    if (!DebounceActive)
+    {
+      OS_SemaphoreSignal(SW1Semaphore);
+      DebounceActive = true;
+      FTM_StartTimer(&SW1_Debounce_Timer);
+    }
 //    HMI_Cycle_Display();
-
-    OS_SemaphoreSignal(SW1Semaphore);
-
-
   }
   OS_ISRExit();
 }

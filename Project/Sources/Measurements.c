@@ -19,7 +19,8 @@
 static const double PI = 3.14159265358979323846;
 
 TSample Samples;
-TMeasurementsBasic basicMeasurements;
+TMeasurementsBasic BasicMeasurements;
+TMeasurementsIntermediate IntermediateMeasurements;
 
 OS_ECB *CalculateSemaphore;
 
@@ -37,12 +38,16 @@ bool Measurements_Init()
   uint32_t seconds;
   RTC_Get_Raw_Seconds(&seconds);
 
-  basicMeasurements.AveragePower = 0.0f;
-  basicMeasurements.TotalCost = 0.0f;
-  basicMeasurements.TotalEnergy = 0.0f;
-  basicMeasurements.MeteringTime = 0;
-//  basicMeasurements.TotalTime = 8640000;
-  basicMeasurements.Time = seconds;
+  BasicMeasurements.AveragePower = 0.0f;
+  BasicMeasurements.TotalCost = 0.0f;
+  BasicMeasurements.TotalEnergy = 0.0f;
+  BasicMeasurements.MeteringTime = 0;
+  BasicMeasurements.Time = seconds;
+
+  IntermediateMeasurements.Frequency = 0.0f;
+  IntermediateMeasurements.RMSVoltage = 0.0f;
+  IntermediateMeasurements.RMSCurrent = 0.0f;
+  IntermediateMeasurements.PowerFactor = 0.0f;
 
 
   CalculateSemaphore = OS_SemaphoreCreate(0);
@@ -55,30 +60,45 @@ void calculateBasic(void *pData)
 //    Packet_Put('d', (uint8_t) averagePower, (uint8_t) periodEnergy, analogDataArray[0].samples[8]);
   for (;;)
   {
-    int powerSum = 0;
-    double periodEnergy = 0.0f, periodCost = 0.0f;
+    float powerSum = 0.0;
+    float periodEnergy = 0.0, periodCost = 0.0;
     float VRMS, CRMS;
     OS_SemaphoreWait(CalculateSemaphore, 0);
 
     //Energy
     for (int i=0; i < ANALOG_SAMPLE_SIZE; i++)
-      powerSum += fabs(Samples.PowerBuffer[i]);
+      powerSum += Samples.PowerBuffer[i];
 
-    periodEnergy = powerSum * ANALOG_SAMPLE_INTERVAL;//now we have Wms, convert it to Wh( / 3.6e+6) then to Kwh( / 1000)
-    periodEnergy /= 3.6e+6;
-    periodEnergy /= 1000;
+
+    //correct way to do this is to get the power for each sample, then using his formula of integrate(p*Ts) we first convert Ts from ms to S for use in the formula.
+    //then we have energy and accumulate it.
+    //then we do: total energy / total time = Power(Watt or Joule).
+    //then we convert watt to Kwh using established formulas
+
+
+    periodEnergy = powerSum * (float)(ANALOG_SAMPLE_INTERVAL / 3.6e+6); //convert to hours.
 
     //Power
     float maxVolt = MaxVoltage(Samples.VoltageBuffer, ANALOG_SAMPLE_SIZE);
     float maxCurrent = MaxVoltage(Samples.CurrentBuffer, ANALOG_SAMPLE_SIZE);
     VRMS = maxVolt / sqrt(2);
     CRMS = maxCurrent / sqrt(2);
-    float power = VRMS * CRMS * cos(0.0);
+
+//    uint8_t hours, minutes, seconds;
+//    RTC_Format_Seconds_Hours(basicMeasurements.MeteringTime, &hours, &minutes, &seconds);
+
+    float powerWattHour = (BasicMeasurements.TotalEnergy + periodEnergy) / ((float)BasicMeasurements.MeteringTime / 3600.0); //convert seconds to hours
+    float powerKwh = powerWattHour / 1000.0;
 
     //Cost
     //calculate cost for these samples and add to total
     //cost of period
     periodCost = CalculateCost(periodEnergy, *Tariff_Loaded);
+
+
+
+
+    //to work out frequency, get time period (approximate from samples)
 
     //#region phase shift
     //get the index at which the peaks appear for both waves. find index difference between waves.
@@ -108,11 +128,13 @@ void calculateBasic(void *pData)
 
 
 
-
-    basicMeasurements.AveragePower = (basicMeasurements.AveragePower + power) / 2;
-    basicMeasurements.TotalEnergy += periodEnergy;
-    basicMeasurements.TotalCost += periodCost;
-
+    //save to basic measurements
+    BasicMeasurements.TotalEnergy += periodEnergy;
+    BasicMeasurements.AveragePower = powerKwh;
+    BasicMeasurements.TotalCost += periodCost;
+    //save to intermediate measurements
+    IntermediateMeasurements.RMSVoltage = VRMS;
+    IntermediateMeasurements.RMSCurrent = CRMS;
   }
 
   //calculate instantaneous power then place in buffer for average after 16 samples
@@ -146,7 +168,7 @@ float GetTimeofUseTariff()
 {
   //get the current time
   uint8_t days, hours, minutes, seconds;
-  Format_Seconds_Days(basicMeasurements.Time, &days, &hours, &minutes, &seconds);
+  RTC_Format_Seconds_Days(BasicMeasurements.Time, &days, &hours, &minutes, &seconds);
   //test peak
   if (hours >= TARIFF_TIME_RANGE.peak.start && hours < TARIFF_TIME_RANGE.peak.end)
     return TARIFFS_VALUES.ToU.peak;

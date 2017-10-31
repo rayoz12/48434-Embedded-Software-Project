@@ -123,7 +123,7 @@ void RTC_Get(uint8_t* const hours, uint8_t* const minutes, uint8_t* const second
 	} while (read1 != read2);
 	int rtcSeconds = read1;
 
-  Format_Seconds_Hours(rtcSeconds, hours, minutes, seconds);
+  RTC_Format_Seconds_Hours(rtcSeconds, hours, minutes, seconds);
 }
 
 void RTC_Get_Raw_Seconds(uint32_t* const seconds)
@@ -140,7 +140,7 @@ void RTC_Get_Raw_Seconds(uint32_t* const seconds)
   *seconds = rtcSeconds;
 }
 
-void Format_Seconds_Hours(int totalSeconds, uint8_t* const hours, uint8_t* const minutes, uint8_t* const seconds)
+void RTC_Format_Seconds_Hours(int totalSeconds, uint8_t* const hours, uint8_t* const minutes, uint8_t* const seconds)
 {
   *hours = totalSeconds/3600;
   totalSeconds = totalSeconds%3600;
@@ -149,7 +149,7 @@ void Format_Seconds_Hours(int totalSeconds, uint8_t* const hours, uint8_t* const
   *seconds = totalSeconds;
 }
 
-void Format_Seconds_Days(int totalSeconds, uint8_t* days, uint8_t* const hours, uint8_t* const minutes, uint8_t* const seconds)
+void RTC_Format_Seconds_Days(int totalSeconds, uint8_t* days, uint8_t* const hours, uint8_t* const minutes, uint8_t* const seconds)
 {
   *days = totalSeconds / 86400;
   totalSeconds = totalSeconds%86400;

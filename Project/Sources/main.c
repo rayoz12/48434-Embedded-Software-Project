@@ -48,6 +48,7 @@
 #include "FixedPoint.h"
 #include "HMI.h"
 #include "LPT.h"
+#include "SelfTest.h"
 
 #include "TowerProtocol.h"
 
@@ -56,6 +57,7 @@
 
 // Analog functions
 #include "analog.h"
+
 
 bool IsSelfTesting;
 
@@ -79,6 +81,8 @@ OS_THREAD_STACK(CalculateThreadStack, THREAD_STACK_SIZE);
  *  @return void
  */
 void FTMCallback0(void* arg);
+
+void FTMCallback1(void* arg);
 
 
 /*! @brief Initialises the tower by setting up the Baud rate, Flash, LED's and the tower number
@@ -108,6 +112,8 @@ void AnalogLoopback(void* args);
 
 void InputConditioning(int16_t voltage, int16_t current, float* voltageOut, float* currentOut);
 
+float Sample_To_Amplitude(int16_t sample);
+
 void OutputHMI();
 
 void SwitchCallbackThread(void *pData);
@@ -121,7 +127,11 @@ const uint8_t ANALOG_THREAD_PRIORITIES[NB_ANALOG_CHANNELS] = {3, 4};
 const static TFTMChannel OneSecTimer =
   {0, //channel number
       CPU_MCGFF_CLK_HZ_CONFIG_0, //delay based on sample code chp6 pg 6 value of 24414
-      TIMER_FUNCTION_OUTPUT_COMPARE, TIMER_OUTPUT_HIGH, FTMCallback0, 0};
+      TIMER_FUNCTION_OUTPUT_COMPARE, TIMER_OUTPUT_HIGH, NULL, 0};
+const TFTMChannel SW1_Debounce_Timer =
+  {1, //channel number
+      CPU_MCGFF_CLK_HZ_CONFIG_0 / 4, //delay for 1/4 a second
+      TIMER_FUNCTION_OUTPUT_COMPARE, TIMER_OUTPUT_HIGH, FTMCallback1, 0};
 
 /*! @brief Samples a value on an ADC channel and sends it to the corresponding DAC channel.
  *
@@ -143,29 +153,37 @@ void AnalogLoopback(void* args)
     OS_SemaphoreSignal(CalculateSemaphore); //signal the calculate thread
     Samples.SamplesNb = 0;
   }
-  // Put analog sample--have to add input circuitry conditioning
+
 //  Analog_Put(ANALOG_VOLTAGE_CHANNEL, (int16_t)Samples.VoltageBuffer[sample]);
-  Analog_Put(ANALOG_VOLTAGE_CHANNEL, analogVoltageInputValue);
-  Analog_Put(ANALOG_CURRENT_CHANNEL, analogCurrentInputValue);
+  if (!IsSelfTesting)
+  {
+    Analog_Put(ANALOG_VOLTAGE_CHANNEL, analogVoltageInputValue);
+    Analog_Put(ANALOG_CURRENT_CHANNEL, analogCurrentInputValue);
+  }
+  else
+  {
+    SelfTest_Put_Data();
+  }
 }
 
 void InputConditioning(int16_t voltage, int16_t current, float *voltageOut, float *currentOut)
 {
   float conditionedVoltage, conditionedCurrent;
   //convert digital samples (16 bit signed) to scale to 10V.
-  if (voltage < 0)
-    conditionedVoltage = (float)voltage / (3276.8f);
-  else
-    conditionedVoltage = (float)voltage / (3276.7f);
+  conditionedVoltage = Sample_To_Amplitude(voltage);
   //scale the sample up by 100 to get the actual voltage
-//  *voltageOut = conditionedVoltage * 100;
-  *voltageOut = fabs(conditionedVoltage);
-  *voltageOut = (conditionedVoltage);
-  if (current < 0)
-    conditionedCurrent = (float)current / (3276.8f);
-  else
-    conditionedCurrent = (float)current / (3276.7f);
+  *voltageOut = conditionedVoltage * 100;
+//  *voltageOut = conditionedVoltage;
+  conditionedCurrent = Sample_To_Amplitude(current);
   *currentOut = (conditionedCurrent);
+}
+
+float Sample_To_Amplitude(int16_t sample)
+{
+  if (sample < 0)
+    return (float)sample / (3276.8f);
+  else
+    return (float)sample / (3276.7f);
 }
 
 void AllocateFlash()
@@ -211,6 +229,7 @@ void TowerInit(void *pData)
     bool RTCSuccess = RTC_Init(RTCThread, NULL);
     bool FTMSuccess = FTM_Init();
     bool FTMLEDSetSuccess = FTM_Set(&OneSecTimer);
+    bool FTM1SetSuccess = FTM_Set(&SW1_Debounce_Timer);
     bool PITSuccess = PIT_Init(CPU_BUS_CLK_HZ, &PITCallback, 0);
     bool AnalogSuccess = Analog_Init(CPU_BUS_CLK_HZ); //added by john <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     bool MeasurementsSuccess = Measurements_Init();
@@ -223,7 +242,7 @@ void TowerInit(void *pData)
   }
   while (!success);
 
-
+  SelfTest_Init();
 
   //allocate the tariffs
   AllocateFlash();
@@ -236,9 +255,6 @@ void TowerInit(void *pData)
 
   //send 3 startup packets as stated by spec sheet
   Handle_Startup_Packet();
-
-  //TODO Delete me from final code, to be set from tower protocol
-//  IsSelfTesting = true;
 
   // We only do this once - therefore delete this thread
   OS_ThreadDelete(OS_PRIORITY_SELF);
@@ -315,13 +331,13 @@ void RTCThread(void* arg)
 
     if (!IsSelfTesting)
     {
-      basicMeasurements.MeteringTime++;
-      basicMeasurements.Time++;
+      BasicMeasurements.MeteringTime++;
+      BasicMeasurements.Time++;
     }
     else
     {
-      basicMeasurements.MeteringTime += 60 * 60;//add 1 hour every second under self test mode
-      basicMeasurements.Time += 60 * 60;
+      BasicMeasurements.MeteringTime += 60 * 60;//add 1 hour every second under self test mode
+      BasicMeasurements.Time += 60 * 60;
     }
 
     //here we also increment the seconds until dormant
@@ -336,6 +352,11 @@ void FTMCallback0(void* args)
     OS_SemaphoreWait(FTMSemaphore[0], 0);
     LEDs_Off(LED_BLUE);
   }
+}
+
+void FTMCallback1(void* args)
+{
+  DebounceActive = false;
 }
 
 void PITCallback(void* arg)
