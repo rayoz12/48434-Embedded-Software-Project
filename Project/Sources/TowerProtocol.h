@@ -32,6 +32,10 @@ typedef enum
   CMD_VOLTAGE_RMS = 0x18,
   CMD_CURRENT_RMS = 0x19,
   CMD_POWER_FACTOR = 0x1A,
+  //Self test mode
+  CMD_SET_VOLTAGE_STEP = 0x1B,
+  CMD_SET_CURRENT_STEP = 0x1C,
+  CMD_SET_PHASE_STEP = 0x1D,
 } CMD;
 
 void TowerProtocol_Handle_Packet();

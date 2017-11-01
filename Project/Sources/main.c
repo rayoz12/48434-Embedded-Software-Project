@@ -64,12 +64,12 @@ bool IsSelfTesting;
 // Thread stacks
 static uint32_t AnalogThreadStacks[NB_ANALOG_CHANNELS][THREAD_STACK_SIZE] __attribute__ ((aligned(0x08)));
 OS_THREAD_STACK(TowerInitThreadStack, THREAD_STACK_SIZE); /*!< The stack for the Tower Init thread. */
-OS_THREAD_STACK(MainThreadStack, THREAD_STACK_SIZE);
+OS_THREAD_STACK(MainThreadStack, 200); //stack overflow errors
 OS_THREAD_STACK(RTCThreadStack, THREAD_STACK_SIZE);
 //OS_THREAD_STACK(PITThreadStack, THREAD_STACK_SIZE);
 OS_THREAD_STACK(FTM0ThreadStack, THREAD_STACK_SIZE);
 //OS_THREAD_STACK(LPTThreadStack, THREAD_STACK_SIZE);
-OS_THREAD_STACK(TransmitThreadStack, THREAD_STACK_SIZE);
+OS_THREAD_STACK(TransmitThreadStack, 200);
 OS_THREAD_STACK(ReceiveThreadStack, 200); //100 isn't enough
 OS_THREAD_STACK(HMIThreadStack, THREAD_STACK_SIZE);
 //project threads
@@ -144,6 +144,7 @@ void AnalogLoopback(void* args)
   Analog_Get(ANALOG_VOLTAGE_CHANNEL, &analogVoltageInputValue);
   Analog_Get(ANALOG_CURRENT_CHANNEL, &analogCurrentInputValue);
   int sample = Samples.SamplesNb;
+  Samples.RawSamples[Samples.SamplesRawNb++] = analogVoltageInputValue;
   InputConditioning(analogVoltageInputValue, analogCurrentInputValue, &Samples.VoltageBuffer[sample], &Samples.CurrentBuffer[sample]);
   Samples.PowerBuffer[Samples.SamplesNb] = fabs(Samples.VoltageBuffer[sample] * Samples.CurrentBuffer[sample]);
   Samples.SamplesNb++;
@@ -152,6 +153,11 @@ void AnalogLoopback(void* args)
   {
     OS_SemaphoreSignal(CalculateSemaphore); //signal the calculate thread
     Samples.SamplesNb = 0;
+  }
+
+  if (Samples.SamplesRawNb >= 128)
+  {
+    Samples.SamplesRawNb = 0;
   }
 
 //  Analog_Put(ANALOG_VOLTAGE_CHANNEL, (int16_t)Samples.VoltageBuffer[sample]);
@@ -287,11 +293,11 @@ int main(void)
   error = OS_ThreadCreate(FTMCallback0, NULL,
                           &FTM0ThreadStack[THREAD_STACK_SIZE - 1], 7); //create FTM0 thread
   error = OS_ThreadCreate(RTCThread, NULL,
-                          &RTCThreadStack[THREAD_STACK_SIZE - 1], 9); //create RTC thread
+                          &RTCThreadStack[THREAD_STACK_SIZE - 1], 8); //create RTC thread
 //  error = OS_ThreadCreate(LPTCallback, NULL,
 //                          &LPTThreadStack[THREAD_STACK_SIZE - 1], 9); //create LPT thread
   error = OS_ThreadCreate(HMI_Cycle_Display_Thread, NULL,
-                          &HMIThreadStack[THREAD_STACK_SIZE - 1], 8); //create HMI thread
+                          &HMIThreadStack[THREAD_STACK_SIZE - 1], 9); //create HMI thread
 
 
   // Start multithreading - never returns!

@@ -34,6 +34,7 @@ int MaxVoltageIndex(float array[], int length);
 bool Measurements_Init()
 {
   Samples.SamplesNb = 0;
+  Samples.SamplesRawNb = 0;
 
   uint32_t seconds;
   RTC_Get_Raw_Seconds(&seconds);

@@ -20,6 +20,8 @@ typedef struct
   float PowerBuffer[ANALOG_SAMPLE_SIZE];  /*!< The actual array of bytes to store the data */
   float VoltageBuffer[ANALOG_SAMPLE_SIZE];
   float CurrentBuffer[ANALOG_SAMPLE_SIZE];
+  int16_t RawSamples[128];
+  uint8_t SamplesRawNb;
 } TSample;
 
 typedef struct

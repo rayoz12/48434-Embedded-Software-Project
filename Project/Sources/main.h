@@ -24,7 +24,7 @@
 #define NB_ANALOG_CHANNELS 2
 
 #define ANALOG_SAMPLE_SIZE 16
-#define ANALOG_SAMPLE_INTERVAL 1.25 // we get this value from: period: 1/50 = 20 ms, we need 16 samples per period atleast so: 20 / 16 = 1.25
+#define ANALOG_SAMPLE_INTERVAL 1.25 //0.15625 // we get this value from: period: 1/50 = 20 ms, we need 16 samples per period atleast so: 20 / 16 = 1.25
 #define ANALOG_VOLTAGE_CHANNEL 0
 #define ANALOG_CURRENT_CHANNEL 1
 

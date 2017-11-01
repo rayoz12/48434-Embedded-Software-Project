@@ -72,6 +72,11 @@ static bool CurrentRMSPacket();
 
 static bool PowerFactorPacket();
 
+static bool SelfTestSetVoltageStep();
+
+static bool SelfTestSetCurrentStep();
+
+static bool SelfTestSetPhaseStep();
 
 
 /*! @brief Allows the user to write on a particular flash address.
@@ -153,6 +158,15 @@ void TowerProtocol_Handle_Packet()
       break;
     case CMD_POWER_FACTOR:
       success = PowerFactorPacket();
+      break;
+    case CMD_SET_VOLTAGE_STEP:
+      success = SelfTestSetVoltageStep();
+      break;
+    case CMD_SET_CURRENT_STEP:
+      success = SelfTestSetCurrentStep();
+      break;
+    case CMD_SET_PHASE_STEP:
+      success = SelfTestSetPhaseStep();
       break;
     default:
       Packet_Put(Packet_Command, 'N', '/', 'A');
@@ -419,6 +433,24 @@ bool PowerFactorPacket()
   powerFactor.l = (uint16_t) IntermediateMeasurements.PowerFactor;
   Packet_Put(CMD_POWER, powerFactor.s.Lo, powerFactor.s.Hi, 0);
   return true;
+}
+
+bool SelfTestSetVoltageStep()
+{
+  uint16_t step = Packet_Parameter12;
+  return SelfTest_Set_Voltage_Step(step);
+}
+
+bool SelfTestSetCurrentStep()
+{
+  uint16_t step = Packet_Parameter12;
+  return SelfTest_Set_Current_Step(step);
+}
+
+bool SelfTestSetPhaseStep()
+{
+  uint8_t step = Packet_Parameter1;
+  return SelfTest_Set_Phase_Step(step);
 }
 
 //we need to ask if we need to check that the address is taken or not.

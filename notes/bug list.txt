@@ -1,0 +1,6 @@
+When sending the data to the terminal while sending a packet to the tower, the tower crashes.
+From my investigation it crashes in random places right after you send the packet to it.
+From the stack trace it starts at FIFO.c:87, FIFO_Get. 
+	The line in question: OS_SemaphoreSignal(FIFO->SpaceAvailable);
+	After checking the values of the Semaphores in the FIFO struct (SpaceAvailable, BufferAccess, ItemsAvailable), they are really high values: 536870912.
+	Which doesn't seem correct. 

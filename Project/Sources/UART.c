@@ -110,29 +110,18 @@ bool UART_InChar(uint8_t * const dataPtr)
 bool UART_OutChar(const uint8_t data)
 {
 	return FIFO_Put(&TxFIFO, data);
-//	bool success = FIFO_Put(&TxFIFO, data);
-//	OS_SemaphoreSignal(TxSemaphore);
-//	return success;
-//	bool success  =
-//	if (success && !(UART2_C2 & UART_C2_TIE_MASK)) //if FIFO has data and the UART interrupt has not been enabled, signal semaphore
-//	{
-//		OS_SemaphoreSignal(TxSemaphore);
-//		UART2_C2 |= UART_C2_TIE_MASK; //kickstart the interrupt by calling senddata and enabling the interrupt
-//	}
-//	return success;
 }
 
 bool UART_OutString(const uint8_t data[])
 {
-  OS_DisableInterrupts();
   uint8_t currentChar = data[0];
   int i = 0;
   do
   {
-    FIFO_Put(&TxFIFO, currentChar);
+//    FIFO_Put(&TxFIFO, currentChar);
+    UART_OutChar(currentChar);
     currentChar = data[++i];
   } while(currentChar != '\0');
-  OS_EnableInterrupts();
   return true;
 }
 
