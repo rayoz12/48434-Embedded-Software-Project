@@ -76,10 +76,11 @@ bool Packet_Get(void)
 				uint8_t checksum = Calc_Checksum(Packet_Command, Packet_Parameter1, Packet_Parameter2, Packet_Parameter3); //calculate XOR checksum
 				if(checksum != Packet_Checksum) //check if checksum is correct, if not shift up.
 				{
-					Packet_Command = Packet_Parameter1;
-					Packet_Parameter1 = Packet_Parameter2;
-					Packet_Parameter2 = Packet_Parameter3;
-					Packet_Parameter3 = Packet_Checksum;
+//					Packet_Command = Packet_Parameter1;
+//					Packet_Parameter1 = Packet_Parameter2;
+//					Packet_Parameter2 = Packet_Parameter3;
+//					Packet_Parameter3 = Packet_Checksum;
+				  PacketState = 0;
 					return false;
 				}
 				else {

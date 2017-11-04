@@ -63,7 +63,7 @@ void calculateBasic(void *pData)
   {
     float powerSum = 0.0;
     float periodEnergy = 0.0, periodCost = 0.0;
-    float VRMS, CRMS;
+    float VRMS, CRMS, frequency;
     OS_SemaphoreWait(CalculateSemaphore, 0);
 
     //Energy
@@ -97,9 +97,40 @@ void calculateBasic(void *pData)
     periodCost = CalculateCost(periodEnergy, *Tariff_Loaded);
 
 
+    //to work out frequency, get time period (approximate from samples), F = 1/p
+    //to get the time period all I have to do is get the time between the positive and negative peaks (which gives me half a period)
+    //then double that to get the whole period.
+    //This works !!!!!!!!
+    // However we need more accuracy by sampling more times
+    int positivePeakIndex, negativePeakIndex;
+    float maxPositive = Samples.VoltageBuffer[0], maxNegative = Samples.VoltageBuffer[0];
+    for(int i = 1; i < ANALOG_SAMPLE_SIZE;i++)
+    {
+      float elem = Samples.VoltageBuffer[i];
+      if (elem > maxPositive) {
+        maxPositive = elem;
+        positivePeakIndex = i;
+      }
+      if (elem < maxNegative) {
+        maxNegative = elem;
+        negativePeakIndex = i;
+      }
+    }
+    if (negativePeakIndex < positivePeakIndex) {
+      //bad data set, try again next time
+      frequency = IntermediateMeasurements.Frequency;
+    }
+    else {
+      //try to dertmine frquency
+      int peakDiff = negativePeakIndex - positivePeakIndex;
+      float timeDiff = peakDiff * ANALOG_SAMPLE_INTERVAL;
+      float period = (timeDiff * 2) / 1000; //should be the period of the whole wave. Period in ms, convert to seconds
+      frequency = 1 / period;
+      timeDiff++; //throw away statement to breakpoint on.
+    }
 
 
-    //to work out frequency, get time period (approximate from samples)
+
 
     //#region phase shift
     //get the index at which the peaks appear for both waves. find index difference between waves.

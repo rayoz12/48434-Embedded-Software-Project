@@ -127,7 +127,7 @@ const uint8_t ANALOG_THREAD_PRIORITIES[NB_ANALOG_CHANNELS] = {3, 4};
 const static TFTMChannel OneSecTimer =
   {0, //channel number
       CPU_MCGFF_CLK_HZ_CONFIG_0, //delay based on sample code chp6 pg 6 value of 24414
-      TIMER_FUNCTION_OUTPUT_COMPARE, TIMER_OUTPUT_HIGH, NULL, 0};
+      TIMER_FUNCTION_OUTPUT_COMPARE, TIMER_OUTPUT_HIGH, NULL, 0}; //the callback is set to null as we use a semaphore
 const TFTMChannel SW1_Debounce_Timer =
   {1, //channel number
       CPU_MCGFF_CLK_HZ_CONFIG_0 / 4, //delay for 1/4 a second
@@ -149,7 +149,7 @@ void AnalogLoopback(void* args)
   Samples.PowerBuffer[Samples.SamplesNb] = fabs(Samples.VoltageBuffer[sample] * Samples.CurrentBuffer[sample]);
   Samples.SamplesNb++;
 
-  if (Samples.SamplesNb >= 16)
+  if (Samples.SamplesNb >= ANALOG_SAMPLE_SIZE)
   {
     OS_SemaphoreSignal(CalculateSemaphore); //signal the calculate thread
     Samples.SamplesNb = 0;
@@ -287,17 +287,17 @@ int main(void)
   error = OS_ThreadCreate(TransmitThread, NULL,
                           &TransmitThreadStack[THREAD_STACK_SIZE - 1], 2); //create transmit UART thread
   error = OS_ThreadCreate(calculateBasic, NULL,
-                          &CalculateThreadStack[THREAD_STACK_SIZE - 1], 5); //create calculate  thread
+                          &CalculateThreadStack[THREAD_STACK_SIZE - 1], 3); //create calculate  thread
   error = OS_ThreadCreate(MainThread, NULL,
-                          &MainThreadStack[THREAD_STACK_SIZE - 1], 6);
+                          &MainThreadStack[THREAD_STACK_SIZE - 1], 4);
   error = OS_ThreadCreate(FTMCallback0, NULL,
-                          &FTM0ThreadStack[THREAD_STACK_SIZE - 1], 7); //create FTM0 thread
+                          &FTM0ThreadStack[THREAD_STACK_SIZE - 1], 5); //create FTM0 thread
   error = OS_ThreadCreate(RTCThread, NULL,
-                          &RTCThreadStack[THREAD_STACK_SIZE - 1], 8); //create RTC thread
+                          &RTCThreadStack[THREAD_STACK_SIZE - 1], 6); //create RTC thread
 //  error = OS_ThreadCreate(LPTCallback, NULL,
 //                          &LPTThreadStack[THREAD_STACK_SIZE - 1], 9); //create LPT thread
   error = OS_ThreadCreate(HMI_Cycle_Display_Thread, NULL,
-                          &HMIThreadStack[THREAD_STACK_SIZE - 1], 9); //create HMI thread
+                          &HMIThreadStack[THREAD_STACK_SIZE - 1], 7); //create HMI thread
 
 
   // Start multithreading - never returns!

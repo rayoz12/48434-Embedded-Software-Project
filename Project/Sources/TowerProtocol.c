@@ -344,8 +344,7 @@ bool TarrifPacket()
   if (tariffIndex >= 1 && tariffIndex <= 3)
   {
     //write to flash
-    return Flash_Write8((uint8_t *) Tariff_Loaded, DEFAULT_TARIFF_LOADED);
-
+    return Flash_Write8((uint8_t *) Tariff_Loaded, tariffIndex);
   }
   else
     return false;
@@ -437,6 +436,7 @@ bool PowerFactorPacket()
 
 bool SelfTestSetVoltageStep()
 {
+  //this is the format of Param1 = high byte, param 2 = low byte
   uint16_t step = Packet_Parameter12;
   return SelfTest_Set_Voltage_Step(step);
 }

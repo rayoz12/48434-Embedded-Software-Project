@@ -22,6 +22,14 @@
 #include "../Library/OS.h"
 //#define PORTE_MUX_MASK 0x180
 
+#define RxBUFFER_SIZE 256
+
+static uint8_t RxBuffer[RxBUFFER_SIZE];
+static uint16_t RxBufferStart;
+static uint16_t RxBufferEnd;
+
+static long long byteCount;
+
 static TFIFO RxFIFO;
 static TFIFO TxFIFO;
 
@@ -47,6 +55,12 @@ bool UART_Init(const uint32_t baudRate, const uint32_t moduleClk)
   //FIFO Init
   FIFO_Init(&RxFIFO);
   FIFO_Init(&TxFIFO);
+
+  uint16_t RxBufferStart = 0;
+  uint16_t RxBufferEnd = 0;
+
+  byteCount = 0;
+
   //enable UART2 and PORTE (PORT E shares pins with UART)
   SIM_SCGC4 |= SIM_SCGC4_UART2_MASK;
   SIM_SCGC5 |= SIM_SCGC5_PORTE_MASK;
@@ -160,7 +174,11 @@ void ReceiveThread(void *arg)
 	for(;;)
 	{
 		OS_SemaphoreWait(RxSemaphore, 0);
-		FIFO_Put(&RxFIFO, TempVar);
+    uint8_t data = RxBuffer[RxBufferStart];
+    RxBufferStart++;
+    if (RxBufferStart >= RxBUFFER_SIZE)
+      RxBufferStart = 0;
+		FIFO_Put(&RxFIFO, data);
 		//UART2_C2 |= UART_C2_RIE_MASK;
 	}
 }
@@ -187,9 +205,15 @@ void __attribute__ ((interrupt)) UART_ISR(void)
 	{
 		if (UART2_S1 & UART_S1_RDRF_MASK)
 		{
-			//Received
-			TempVar = UART2_D;
-			//FIFO_Put(&RxFIFO, &tempvar);
+
+			RxBuffer[RxBufferEnd] = UART2_D;
+			RxBufferEnd++;
+			if (RxBufferEnd >= RxBUFFER_SIZE)
+			  RxBufferEnd = 0;
+
+			byteCount++;
+
+//			FIFO_Put(&RxFIFO, UART2_D);
 			OS_SemaphoreSignal(RxSemaphore);
 		}
 	}

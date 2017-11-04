@@ -9,8 +9,9 @@
 
 #include "OS.h"
 #include "types.h"
+//#include "main.h"
 
-#define ANALOG_SAMPLE_SIZE 16
+#define ANALOG_SAMPLE_SIZE 64
 
 extern OS_ECB *CalculateSemaphore;
 
@@ -20,7 +21,7 @@ typedef struct
   float PowerBuffer[ANALOG_SAMPLE_SIZE];  /*!< The actual array of bytes to store the data */
   float VoltageBuffer[ANALOG_SAMPLE_SIZE];
   float CurrentBuffer[ANALOG_SAMPLE_SIZE];
-  int16_t RawSamples[128];
+  int16_t RawSamples[128]; // holds the last 128 samples for analysis later on
   uint8_t SamplesRawNb;
 } TSample;
 

@@ -51,18 +51,18 @@ float ScaleVoltageDown(float voltage);
 //this is a sine wave with a height of 1
 //To scale it is easy, all we have to do is times by the desired height.
 static const int16_t SineRaw[RAW_SINE_SAMPLES] =
-  {7, -161, -325, -492, -655, -820, -980, -1140, -1296, -1447, -1595, -1741,
-      -1881, -2015, -2141, -2263, -2378, -2487, -2588, -2679, -2769, -2851,
-      -2924, -2992, -3049, -3099, -3141, -3171, -3196, -3211, -3218, -3215,
-      -3202, -3183, -3156, -3116, -3070, -3015, -2956, -2881, -2802, -2719,
-      -2627, -2529, -2422, -2306, -2187, -2062, -1929, -1790, -1647, -1504,
-      -1349, -1194, -1036, -876, -713, -551, -387, -218, -50, 114, 278, 445,
-      605, 768, 930, 1085, 1240, 1394, 1539, 1683, 1821, 1953, 2077, 2195, 2310,
-      2413, 2513, 2603, 2686, 2764, 2833, 2899, 2951, 2231, 2340, 2444, 2540,
-      2629, 2711, 2787, 2856, 2914, 2967, 3011, 3045, 3070, 3085, 3095, 3089,
-      3072, 3048, 3017, 2974, 2923, 2861, 2796, 2721, 2640, 2553, 2454, 2354,
-      2245, 2121, 1998, 1872, 1733, 1592, 1446, 1295, 1143, 987, 827, 665, 503,
-      337, 172};
+    {7, -161, -325, -492, -655, -820, -980, -1140, -1296, -1447, -1595, -1741,
+          -1881, -2015, -2141, -2263, -2378, -2487, -2588, -2679, -2769, -2851,
+          -2924, -2992, -3049, -3099, -3141, -3171, -3196, -3211, -3218, -3215,
+          -3202, -3183, -3156, -3116, -3070, -3015, -2956, -2881, -2802, -2719,
+          -2627, -2529, -2422, -2306, -2187, -2062, -1929, -1790, -1647, -1504,
+          -1349, -1194, -1036, -876, -713, -551, -387, -218, -50, 114, 278, 445,
+          605, 768, 930, 1085, 1240, 1394, 1539, 1683, 1821, 1953, 2077, 2195, 2310,
+          2413, 2513, 2603, 2686, 2764, 2833, 2899, 2951, 2231, 2340, 2444, 2540,// issue here
+          2629, 2711, 2787, 2856, 2914, 2967, 3011, 3045, 3070, 3085, 3095, 3089,
+          3072, 3048, 3017, 2974, 2923, 2861, 2796, 2721, 2640, 2553, 2454, 2354,
+          2245, 2121, 1998, 1872, 1733, 1592, 1446, 1295, 1143, 987, 827, 665, 503,
+          337, 172}; //9
 
 static uint8_t SamplesPutCounter;
 
@@ -94,12 +94,15 @@ void SelfTest_Put_Data()
 
   //calculate phase location
   //get offset based on current put counter
-  uint8_t phaseShiftedIndex = (SamplesPutCounter + PhaseScale) % RAW_SINE_SAMPLES;
+  uint8_t phaseShiftedIndex = (SamplesPutCounter + PhaseScale)
+      % RAW_SINE_SAMPLES;
 
-  Analog_Put(ANALOG_VOLTAGE_CHANNEL, (int16_t) SineRaw[SamplesPutCounter] * VoltageScale);
-  Analog_Put(ANALOG_CURRENT_CHANNEL, (int16_t) SineRaw[phaseShiftedIndex] * CurrentScale);
+  Analog_Put(ANALOG_VOLTAGE_CHANNEL,
+             (int16_t)SineRaw[SamplesPutCounter] * VoltageScale);
+  Analog_Put(ANALOG_CURRENT_CHANNEL,
+             (int16_t)SineRaw[phaseShiftedIndex] * CurrentScale);
 
-  SamplesPutCounter += 8; //to account for the fact that we are outputting 16 samples not 128
+  SamplesPutCounter += 128 / ANALOG_SAMPLE_SIZE; //to account for the fact that we are outputting 16 samples not 128
   if (SamplesPutCounter >= RAW_SINE_SAMPLES)
   {
     SamplesPutCounter = 0;
@@ -151,8 +154,16 @@ uint16_t ClosestStepFromVoltage(float voltage)
   //first subtract the voltage from the lowest voltage to get difference
   //To get steps required: difference / the step size
   float difference = voltage - VOLTAGE_MIN;
-  return (uint16_t) ceil(difference / VOLTAGE_STEP_SIZE);
+  return (uint16_t)ceil(difference / VOLTAGE_STEP_SIZE);
 }
+
+//StepFromVoltage = (voltage) =>
+//{
+//  //first subtract the voltage from the lowest voltage to get difference
+//  //To get steps required: difference / the step size
+//  difference = voltage - VOLTAGE_MIN;
+//  return Math.ceil(difference / VOLTAGE_STEP_SIZE);
+//}
 
 float StepToVoltage(uint16_t step)
 {
@@ -164,7 +175,7 @@ uint16_t ClosestStepFromCurrent(float current)
   //first subtract the voltage from the lowest voltage to get difference
   //To get steps required: difference / the step size
   float difference = current - CURRENT_MIN;
-  return (uint16_t) ceil(difference / CURRENT_STEP_SIZE);
+  return (uint16_t)ceil(difference / CURRENT_STEP_SIZE);
 }
 
 float StepToCurrent(uint16_t step)
@@ -177,5 +188,4 @@ float ScaleVoltageDown(float voltage)
 {
   return voltage / 100;
 }
-
 
