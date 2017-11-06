@@ -10,7 +10,7 @@
 
 #include "types.h"
 
-extern bool SelfTest;
+extern bool IsSelfTesting;
 extern float VoltageScale;
 extern float CurrentScale;
 

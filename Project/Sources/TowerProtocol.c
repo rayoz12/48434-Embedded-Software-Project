@@ -353,7 +353,7 @@ bool TarrifPacket()
 bool TimePacket(uint8_t timeVal)
 {
   uint8_t days, hours, minutes, seconds;
-  RTC_Format_Seconds_Days(BasicMeasurements.MeteringTime, &days, &hours, &minutes, &seconds);
+  RTC_Format_Seconds_Days(Basic_Measurements.MeteringTime, &days, &hours, &minutes, &seconds);
   if (timeVal == 1)
   {
     //send secs and minutes
@@ -373,7 +373,7 @@ bool TimePacket(uint8_t timeVal)
 bool PowerPacket()
 {
   uint16union_t power;
-  power.l = (uint16_t) BasicMeasurements.AveragePower;
+  power.l = (uint16_t) Basic_Measurements.AveragePower;
   Packet_Put(CMD_POWER, power.s.Lo, power.s.Hi, 0);
   return true;
 }
@@ -381,56 +381,56 @@ bool PowerPacket()
 bool EnergyPacket()
 {
   uint16union_t energy;
-  energy.l = (uint16_t) BasicMeasurements.TotalEnergy;
-  Packet_Put(CMD_POWER, energy.s.Lo, energy.s.Hi, 0);
+  energy.l = (uint16_t) Basic_Measurements.TotalEnergy;
+  Packet_Put(CMD_COST, energy.s.Lo, energy.s.Hi, 0);
   return true;
 }
 
 bool CostPacket()
 {
   int real, frac;
-  real = BasicMeasurements.TotalCost;
-  frac = trunc((BasicMeasurements.TotalCost - real) * 100);
+  real = Basic_Measurements.TotalCost;
+  frac = trunc((Basic_Measurements.TotalCost - real) * 100);
   if (real > 255)
   {
     uint16union_t dollars;
     dollars.l = real;
-    Packet_Put(CMD_POWER, frac, dollars.s.Lo, dollars.s.Hi);
+    Packet_Put(CMD_COST, frac, dollars.s.Lo, dollars.s.Hi);
   }
   else
-    Packet_Put(CMD_POWER, frac, real, 0);
+    Packet_Put(CMD_COST, frac, real, 0);
   return true;
 }
 
 bool FrequencyPacket()
 {
   uint16union_t frequency;
-  frequency.l = (uint16_t) IntermediateMeasurements.Frequency;
-  Packet_Put(CMD_POWER, frequency.s.Lo, frequency.s.Hi, 0);
+  frequency.l = (uint16_t) Intermediate_Measurements.Frequency * 10;
+  Packet_Put(CMD_FREQUENCY, frequency.s.Lo, frequency.s.Hi, 0);
   return true;
 }
 
 bool VoltageRMSPacket()
 {
   uint16union_t voltageRMS;
-  voltageRMS.l = (uint16_t) IntermediateMeasurements.RMSVoltage;
-  Packet_Put(CMD_POWER, voltageRMS.s.Lo, voltageRMS.s.Hi, 0);
+  voltageRMS.l = (uint16_t) Intermediate_Measurements.RMSVoltage;
+  Packet_Put(CMD_VOLTAGE_RMS, voltageRMS.s.Lo, voltageRMS.s.Hi, 0);
   return true;
 }
 
 bool CurrentRMSPacket()
 {
   uint16union_t currentRMS;
-  currentRMS.l = (uint16_t) IntermediateMeasurements.RMSCurrent;
-  Packet_Put(CMD_POWER, currentRMS.s.Lo, currentRMS.s.Hi, 0);
+  currentRMS.l = (uint16_t) Intermediate_Measurements.RMSCurrent * 1000;
+  Packet_Put(CMD_CURRENT_RMS, currentRMS.s.Lo, currentRMS.s.Hi, 0);
   return true;
 }
 
 bool PowerFactorPacket()
 {
   uint16union_t powerFactor;
-  powerFactor.l = (uint16_t) IntermediateMeasurements.PowerFactor;
-  Packet_Put(CMD_POWER, powerFactor.s.Lo, powerFactor.s.Hi, 0);
+  powerFactor.l = (uint16_t) Intermediate_Measurements.PowerFactor * 1000;
+  Packet_Put(CMD_POWER_FACTOR, powerFactor.s.Lo, powerFactor.s.Hi, 0);
   return true;
 }
 

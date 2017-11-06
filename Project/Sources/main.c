@@ -59,8 +59,6 @@
 #include "analog.h"
 
 
-bool IsSelfTesting;
-
 // Thread stacks
 static uint32_t AnalogThreadStacks[NB_ANALOG_CHANNELS][THREAD_STACK_SIZE] __attribute__ ((aligned(0x08)));
 OS_THREAD_STACK(TowerInitThreadStack, THREAD_STACK_SIZE); /*!< The stack for the Tower Init thread. */
@@ -71,7 +69,7 @@ OS_THREAD_STACK(FTM0ThreadStack, THREAD_STACK_SIZE);
 //OS_THREAD_STACK(LPTThreadStack, THREAD_STACK_SIZE);
 OS_THREAD_STACK(TransmitThreadStack, 200);
 OS_THREAD_STACK(ReceiveThreadStack, 200); //100 isn't enough
-OS_THREAD_STACK(HMIThreadStack, THREAD_STACK_SIZE);
+OS_THREAD_STACK(HMIThreadStack, 250);
 //project threads
 //Measurements.c
 OS_THREAD_STACK(CalculateThreadStack, THREAD_STACK_SIZE);
@@ -82,7 +80,7 @@ OS_THREAD_STACK(CalculateThreadStack, THREAD_STACK_SIZE);
  */
 void FTMCallback0(void* arg);
 
-void FTMCallback1(void* arg);
+
 
 
 /*! @brief Initialises the tower by setting up the Baud rate, Flash, LED's and the tower number
@@ -128,10 +126,7 @@ const static TFTMChannel OneSecTimer =
   {0, //channel number
       CPU_MCGFF_CLK_HZ_CONFIG_0, //delay based on sample code chp6 pg 6 value of 24414
       TIMER_FUNCTION_OUTPUT_COMPARE, TIMER_OUTPUT_HIGH, NULL, 0}; //the callback is set to null as we use a semaphore
-const TFTMChannel SW1_Debounce_Timer =
-  {1, //channel number
-      CPU_MCGFF_CLK_HZ_CONFIG_0 / 4, //delay for 1/4 a second
-      TIMER_FUNCTION_OUTPUT_COMPARE, TIMER_OUTPUT_HIGH, FTMCallback1, 0};
+
 
 /*! @brief Samples a value on an ADC channel and sends it to the corresponding DAC channel.
  *
@@ -235,7 +230,6 @@ void TowerInit(void *pData)
     bool RTCSuccess = RTC_Init(RTCThread, NULL);
     bool FTMSuccess = FTM_Init();
     bool FTMLEDSetSuccess = FTM_Set(&OneSecTimer);
-    bool FTM1SetSuccess = FTM_Set(&SW1_Debounce_Timer);
     bool PITSuccess = PIT_Init(CPU_BUS_CLK_HZ, &PITCallback, 0);
     bool AnalogSuccess = Analog_Init(CPU_BUS_CLK_HZ); //added by john <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     bool MeasurementsSuccess = Measurements_Init();
@@ -337,13 +331,13 @@ void RTCThread(void* arg)
 
     if (!IsSelfTesting)
     {
-      BasicMeasurements.MeteringTime++;
-      BasicMeasurements.Time++;
+      Basic_Measurements.MeteringTime++;
+      Basic_Measurements.Time++;
     }
     else
     {
-      BasicMeasurements.MeteringTime += 60 * 60;//add 1 hour every second under self test mode
-      BasicMeasurements.Time += 60 * 60;
+      Basic_Measurements.MeteringTime += 60 * 60;//add 1 hour every second under self test mode
+      Basic_Measurements.Time += 60 * 60;
     }
 
     //here we also increment the seconds until dormant
@@ -358,11 +352,6 @@ void FTMCallback0(void* args)
     OS_SemaphoreWait(FTMSemaphore[0], 0);
     LEDs_Off(LED_BLUE);
   }
-}
-
-void FTMCallback1(void* args)
-{
-  DebounceActive = false;
 }
 
 void PITCallback(void* arg)

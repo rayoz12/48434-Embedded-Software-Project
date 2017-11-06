@@ -9,6 +9,8 @@
 #include "types.h"
 #include "analog.h"
 #include "main.h"
+#include "RTC.h"
+#include "Measurements.h"
 #include <math.h>
 
 bool IsSelfTesting;
@@ -58,7 +60,7 @@ static const int16_t SineRaw[RAW_SINE_SAMPLES] =
           -2627, -2529, -2422, -2306, -2187, -2062, -1929, -1790, -1647, -1504,
           -1349, -1194, -1036, -876, -713, -551, -387, -218, -50, 114, 278, 445,
           605, 768, 930, 1085, 1240, 1394, 1539, 1683, 1821, 1953, 2077, 2195, 2310,
-          2413, 2513, 2603, 2686, 2764, 2833, 2899, 2951, 2231, 2340, 2444, 2540,// issue here
+          2413, 2513, 2603, 2686, 2764, 2833, 2899, 2951, 2231, 2340, 2444, 2540,// here
           2629, 2711, 2787, 2856, 2914, 2967, 3011, 3045, 3070, 3085, 3095, 3089,
           3072, 3048, 3017, 2974, 2923, 2861, 2796, 2721, 2640, 2553, 2454, 2354,
           2245, 2121, 1998, 1872, 1733, 1592, 1446, 1295, 1143, 987, 827, 665, 503,
@@ -68,8 +70,8 @@ static uint8_t SamplesPutCounter;
 
 void SelfTest_Init()
 {
-  IsSelfTesting = true;
-  SamplesPutCounter = 0;
+  IsSelfTesting = false;
+  SamplesPutCounter = RAW_SINE_SAMPLES / 2;
 
   VoltageScale = 2;
   CurrentScale = 1;
@@ -79,6 +81,11 @@ void SelfTest_Init()
 void SelfTest_Set_SelfTest(bool setting)
 {
   IsSelfTesting = setting;
+  if (setting == false)
+  {
+    //reset basic measurements time back to normal
+    RTC_Get_Raw_Seconds((uint32_t *) &Basic_Measurements.Time);
+  }
 }
 
 bool SelfTest_Set_PhaseShift(uint8_t scale)
@@ -94,8 +101,7 @@ void SelfTest_Put_Data()
 
   //calculate phase location
   //get offset based on current put counter
-  uint8_t phaseShiftedIndex = (SamplesPutCounter + PhaseScale)
-      % RAW_SINE_SAMPLES;
+  uint8_t phaseShiftedIndex = (SamplesPutCounter + PhaseScale) % RAW_SINE_SAMPLES;
 
   Analog_Put(ANALOG_VOLTAGE_CHANNEL,
              (int16_t)SineRaw[SamplesPutCounter] * VoltageScale);
@@ -156,13 +162,13 @@ uint16_t ClosestStepFromVoltage(float voltage)
   float difference = voltage - VOLTAGE_MIN;
   return (uint16_t)ceil(difference / VOLTAGE_STEP_SIZE);
 }
-
+// js test
 //StepFromVoltage = (voltage) =>
 //{
 //  //first subtract the voltage from the lowest voltage to get difference
 //  //To get steps required: difference / the step size
-//  difference = voltage - VOLTAGE_MIN;
-//  return Math.ceil(difference / VOLTAGE_STEP_SIZE);
+//  difference = voltage - 282.8;
+//  return Math.ceil(difference / 30.52 / 1000);
 //}
 
 float StepToVoltage(uint16_t step)

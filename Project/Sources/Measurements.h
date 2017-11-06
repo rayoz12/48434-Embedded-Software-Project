@@ -11,7 +11,7 @@
 #include "types.h"
 //#include "main.h"
 
-#define ANALOG_SAMPLE_SIZE 64
+#define ANALOG_SAMPLE_SIZE 16
 
 extern OS_ECB *CalculateSemaphore;
 
@@ -48,9 +48,9 @@ typedef struct
 
 extern TSample Samples;
 
-extern TMeasurementsBasic BasicMeasurements;
+extern TMeasurementsBasic Basic_Measurements;
 
-extern TMeasurementsIntermediate IntermediateMeasurements;
+extern TMeasurementsIntermediate Intermediate_Measurements;
 
 bool Measurements_Init();
 

@@ -8,6 +8,7 @@
 #include "MK70F12.h"
 #include "HMI.h"
 #include "OS.h"
+#include "Cpu.h"
 #include "RTC.h"
 #include "FTM.h"
 #include "main.h"
@@ -19,11 +20,22 @@
 
 OS_ECB *SW1Semaphore;
 
-bool DebounceActive;
+static bool DebounceActive;
 
 static uint8_t TimeTillDormant;
 
 static TDISPLAY_STATES DisplayState;
+
+void FTMCallback1(void* arg);
+
+int roundTo3Decimal(int number);
+
+const static TFTMChannel SW1_Debounce_Timer =
+  {1, //channel number
+      CPU_MCGFF_CLK_HZ_CONFIG_0 / 4, //delay for 1/4 a second
+      TIMER_FUNCTION_OUTPUT_COMPARE, TIMER_OUTPUT_HIGH, FTMCallback1, 0};
+
+
 
 
 bool HMI_Init()
@@ -35,6 +47,8 @@ bool HMI_Init()
   DebounceActive = false;
 
   DisplayState = DORMANT;
+
+  bool FTM1SetSuccess = FTM_Set(&SW1_Debounce_Timer);
 
   //SW1 is on portD 0
   SIM_SCGC5 |= SIM_SCGC5_PORTD_MASK; //turn on port D
@@ -97,10 +111,11 @@ void HMI_Output()
   //cycle display
   uint8_t days, hours, minutes, seconds, outBuff[256];
   int real, frac;
+  float power, energy;
   switch (DisplayState)
   {
     case METERING_TIME:
-      RTC_Format_Seconds_Days(BasicMeasurements.MeteringTime, &days, &hours, &minutes, &seconds);
+      RTC_Format_Seconds_Days(Basic_Measurements.MeteringTime, &days, &hours, &minutes, &seconds);
       if (!(days > 99))
         sprintf(outBuff, "Metering Time: %02d:%02d:%02d:%02d\n", days, hours, minutes, seconds);
       else
@@ -109,20 +124,25 @@ void HMI_Output()
       break;
     case AVERAGE_POWER:
       //sprintf'ing a float doesn't seem to work so have to convert it to ints
-      real = BasicMeasurements.AveragePower;
-      frac = trunc((BasicMeasurements.AveragePower - real) * 10000);
-      sprintf(outBuff, "Average Power: %d.%04d kWh\n", real, frac);
+      power = Basic_Measurements.AveragePower / 1000;
+      real = power;
+      frac = trunc((power - real) * 10);
+      frac = roundTo3Decimal(frac);
+      sprintf(outBuff, "Average Power: %d.%03d kWh\n", real, frac);
       UART_OutString(outBuff);
       break;
     case TOTAL_ENERGY:
-      real = BasicMeasurements.TotalEnergy;
-      frac = trunc((BasicMeasurements.TotalEnergy - real) * 1000000);
-      sprintf(outBuff, "Total Energy: %d.%04d kW\n",  real, frac);
+      energy = Basic_Measurements.TotalEnergy;
+      real = energy;
+      frac = trunc((energy - real) * 10000);
+      frac = roundTo3Decimal(frac);
+      sprintf(outBuff, "Total Energy: %d.%03d kW\n",  real, frac);
       UART_OutString(outBuff);
       break;
     case TOTAL_COST:
-      real = BasicMeasurements.TotalCost;
-      frac = trunc((BasicMeasurements.TotalCost - real) * 100);
+      real = Basic_Measurements.TotalCost;
+      frac = trunc((Basic_Measurements.TotalCost - real) * 100);
+      frac = roundTo3Decimal(frac);
       if (!(real > 9999))
         sprintf(outBuff, "Total Cost: $%d.%02d\n", real, frac);
       else
@@ -134,12 +154,25 @@ void HMI_Output()
   }
 }
 
+int roundTo3Decimal(int number)
+{
+  while(number >= 1000)
+    number /= 100;
+  return number;
+}
+
 //this is called every second by RTC
 void HMI_Tick()
 {
   if (++TimeTillDormant >= 16)
     DisplayState = DORMANT;
   HMI_Output();
+}
+
+
+void FTMCallback1(void* args)
+{
+  DebounceActive = false;
 }
 
 void __attribute__ ((interrupt)) SW1_ISR(void)
@@ -152,12 +185,13 @@ void __attribute__ ((interrupt)) SW1_ISR(void)
 //    PORTD_PCR0 |= PORT_PCR_ISF_MASK;
     PORTD_ISFR |= PORT_ISFR_ISF(0);
 
-    if (!DebounceActive)
-    {
-      OS_SemaphoreSignal(SW1Semaphore);
-      DebounceActive = true;
-      FTM_StartTimer(&SW1_Debounce_Timer);
-    }
+//    if (!DebounceActive)
+//    {
+//      OS_SemaphoreSignal(SW1Semaphore);
+//      DebounceActive = true;
+//      FTM_StartTimer(&SW1_Debounce_Timer);
+//    }
+    OS_SemaphoreSignal(SW1Semaphore);
 //    HMI_Cycle_Display();
   }
   OS_ISRExit();

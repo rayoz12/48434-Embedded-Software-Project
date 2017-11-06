@@ -10,7 +10,7 @@
 
 #include "analog.h"
 #include "main.h"
-//#include "packet.h"
+#include "SelfTest.h"
 #include "main.h"
 #include "Constants.h"
 #include <math.h>
@@ -19,8 +19,8 @@
 static const double PI = 3.14159265358979323846;
 
 TSample Samples;
-TMeasurementsBasic BasicMeasurements;
-TMeasurementsIntermediate IntermediateMeasurements;
+TMeasurementsBasic Basic_Measurements;
+TMeasurementsIntermediate Intermediate_Measurements;
 
 OS_ECB *CalculateSemaphore;
 
@@ -39,16 +39,16 @@ bool Measurements_Init()
   uint32_t seconds;
   RTC_Get_Raw_Seconds(&seconds);
 
-  BasicMeasurements.AveragePower = 0.0f;
-  BasicMeasurements.TotalCost = 0.0f;
-  BasicMeasurements.TotalEnergy = 0.0f;
-  BasicMeasurements.MeteringTime = 0;
-  BasicMeasurements.Time = seconds;
+  Basic_Measurements.AveragePower = 0.0f;
+  Basic_Measurements.TotalCost = 0.0f;
+  Basic_Measurements.TotalEnergy = 0.0f;
+  Basic_Measurements.MeteringTime = 0;
+  Basic_Measurements.Time = seconds;
 
-  IntermediateMeasurements.Frequency = 0.0f;
-  IntermediateMeasurements.RMSVoltage = 0.0f;
-  IntermediateMeasurements.RMSCurrent = 0.0f;
-  IntermediateMeasurements.PowerFactor = 0.0f;
+  Intermediate_Measurements.Frequency = 0.0f;
+  Intermediate_Measurements.RMSVoltage = 0.0f;
+  Intermediate_Measurements.RMSCurrent = 0.0f;
+  Intermediate_Measurements.PowerFactor = 0.0f;
 
 
   CalculateSemaphore = OS_SemaphoreCreate(0);
@@ -63,12 +63,20 @@ void calculateBasic(void *pData)
   {
     float powerSum = 0.0;
     float periodEnergy = 0.0, periodCost = 0.0;
-    float VRMS, CRMS, frequency;
+    float powerFactor;
+    float frequency, VRMS = 0, CRMS = 0;
     OS_SemaphoreWait(CalculateSemaphore, 0);
+
+    //because we access the Samples struct we need sure we avoid corrupt data from PIT
+    OS_DisableInterrupts();
 
     //Energy
     for (int i=0; i < ANALOG_SAMPLE_SIZE; i++)
+    {
       powerSum += Samples.PowerBuffer[i];
+      VRMS += pow(Samples.VoltageBuffer[i], 2);
+      CRMS += pow(Samples.CurrentBuffer[i], 2);
+    }
 
 
     //correct way to do this is to get the power for each sample, then using his formula of integrate(p*Ts) we first convert Ts from ms to S for use in the formula.
@@ -77,19 +85,18 @@ void calculateBasic(void *pData)
     //then we convert watt to Kwh using established formulas
 
 
-    periodEnergy = powerSum * (float)(ANALOG_SAMPLE_INTERVAL / 3.6e+6); //convert to hours.
+    periodEnergy = (powerSum * (ANALOG_SAMPLE_INTERVAL / 1000)) / 3.6e+6f; //convert to hours.
 
-    //Power
-    float maxVolt = MaxVoltage(Samples.VoltageBuffer, ANALOG_SAMPLE_SIZE);
-    float maxCurrent = MaxVoltage(Samples.CurrentBuffer, ANALOG_SAMPLE_SIZE);
-    VRMS = maxVolt / sqrt(2);
-    CRMS = maxCurrent / sqrt(2);
+    //rms for any type of wave
+    VRMS = sqrt(VRMS / ANALOG_SAMPLE_INTERVAL);
+    CRMS = sqrt(CRMS / ANALOG_SAMPLE_INTERVAL);
+
+    //power factor, P = VI * Cos(theta), where power is average power for period and V,I are respective RMS values
+    powerFactor = powerSum / (VRMS * CRMS);
+
 
 //    uint8_t hours, minutes, seconds;
 //    RTC_Format_Seconds_Hours(basicMeasurements.MeteringTime, &hours, &minutes, &seconds);
-
-    float powerWattHour = (BasicMeasurements.TotalEnergy + periodEnergy) / ((float)BasicMeasurements.MeteringTime / 3600.0); //convert seconds to hours
-    float powerKwh = powerWattHour / 1000.0;
 
     //Cost
     //calculate cost for these samples and add to total
@@ -102,6 +109,7 @@ void calculateBasic(void *pData)
     //then double that to get the whole period.
     //This works !!!!!!!!
     // However we need more accuracy by sampling more times
+    //this is only ever as accurate as the number of samples between the peaks
     int positivePeakIndex, negativePeakIndex;
     float maxPositive = Samples.VoltageBuffer[0], maxNegative = Samples.VoltageBuffer[0];
     for(int i = 1; i < ANALOG_SAMPLE_SIZE;i++)
@@ -118,7 +126,7 @@ void calculateBasic(void *pData)
     }
     if (negativePeakIndex < positivePeakIndex) {
       //bad data set, try again next time
-      frequency = IntermediateMeasurements.Frequency;
+      frequency = Intermediate_Measurements.Frequency;
     }
     else {
       //try to dertmine frquency
@@ -126,56 +134,22 @@ void calculateBasic(void *pData)
       float timeDiff = peakDiff * ANALOG_SAMPLE_INTERVAL;
       float period = (timeDiff * 2) / 1000; //should be the period of the whole wave. Period in ms, convert to seconds
       frequency = 1 / period;
-      timeDiff++; //throw away statement to breakpoint on.
     }
 
 
-
-
-    //#region phase shift
-    //get the index at which the peaks appear for both waves. find index difference between waves.
-    //Work out time by: sampleInterval * difference.
-
-    //these are accurate to +- 3, which sucks
-    int maxIndexVolt = MaxVoltageIndex(Samples.VoltageBuffer, ANALOG_SAMPLE_SIZE);
-    int maxIndexCurrent = MaxVoltageIndex(Samples.CurrentBuffer, ANALOG_SAMPLE_SIZE);
-
-    //get difference between the peaks, then work out time, retain sign to see if behind or ahead
-    int peakDiff = maxIndexVolt - maxIndexCurrent;
-    float timeDiff = peakDiff * ANALOG_SAMPLE_INTERVAL;
-//    There is no need to do anything complicated: just measure the duration between peaks of the waveform. This is the period.
-//    The frequency is just 1 divided by the period.
-//    https://sciencing.com/calculate-phase-shift-5157754.html
-    float freq, period, phaseShiftRadians;
-    if (timeDiff != 0)
-    {
-      freq = 1 / timeDiff;
-      period = 1.0f / freq;
-      phaseShiftRadians = 2 * PI * timeDiff / period;
-    }
-    //#endregion
-
-
-
-
-
-
+    powerSum /= ANALOG_SAMPLE_SIZE;
     //save to basic measurements
-    BasicMeasurements.TotalEnergy += periodEnergy;
-    BasicMeasurements.AveragePower = powerKwh;
-    BasicMeasurements.TotalCost += periodCost;
+    Basic_Measurements.TotalEnergy += periodEnergy;
+    Basic_Measurements.AveragePower = powerSum;
+    Basic_Measurements.TotalCost += periodCost;
     //save to intermediate measurements
-    IntermediateMeasurements.RMSVoltage = VRMS;
-    IntermediateMeasurements.RMSCurrent = CRMS;
+    Intermediate_Measurements.RMSVoltage = VRMS;
+    Intermediate_Measurements.RMSCurrent = CRMS;
+    Intermediate_Measurements.Frequency = frequency;
+    Intermediate_Measurements.PowerFactor = powerFactor;
   }
 
-  //calculate instantaneous power then place in buffer for average after 16 samples
-
-  //uint8_t instPower = sample;
-
-  //every 16 samples calculate average power, energy
-
-  //add this 16 sample's energy to total energy
+  OS_EnableInterrupts();
 }
 
 double CalculateCost(double periodEnergy, uint8_t tariffIndex)
@@ -193,14 +167,17 @@ double CalculateCost(double periodEnergy, uint8_t tariffIndex)
       tariff = TARIFFS_VALUES.NonToU.thirdNb;
       break;
   }
-  return periodEnergy * tariff;
+  if (IsSelfTesting)
+    tariff = tariff * 3600; //convert from kwh to kws for self test
+
+  return periodEnergy * (tariff / 100); //convert to cents
 }
 
 float GetTimeofUseTariff()
 {
   //get the current time
   uint8_t days, hours, minutes, seconds;
-  RTC_Format_Seconds_Days(BasicMeasurements.Time, &days, &hours, &minutes, &seconds);
+  RTC_Format_Seconds_Days(Basic_Measurements.Time, &days, &hours, &minutes, &seconds);
   //test peak
   if (hours >= TARIFF_TIME_RANGE.peak.start && hours < TARIFF_TIME_RANGE.peak.end)
     return TARIFFS_VALUES.ToU.peak;

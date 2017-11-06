@@ -13,8 +13,6 @@
 
 extern OS_ECB *SW1Semaphore;
 
-extern bool DebounceActive;
-
 typedef enum
 {
   DORMANT,
