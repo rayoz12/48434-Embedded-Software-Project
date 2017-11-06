@@ -1,12 +1,12 @@
 # 48434-Embedded-Software-Project
 
 ## Notes:
-Store Tariff in flash
+Store Tariff in flash - **DONE**
 
 	- should be able to set tariffs via tower protocol
 FTM to change state to dormant after 15 seconds
 
-2 modes
+2 modes - **DONE**
 
 	-Intermediate	
 	-Basic
@@ -20,11 +20,8 @@ Input conditioning circuitry - Sems like we'll have to process it in software
 SW1 is on Port D pin 0. Used to cycle between displays
 
 ## TODO:
-Tower crashes on first run (or after building and flashing)
-
-	-Probably has to do with writing the tariffs on start up.
-	-There is an access error FSTAT[ACCERR] idk why lol
-
+Change RMS to handle saw tooth.
+Find a way to detect frequency more easily. We should also be able to do tracking on it.
 
 ## Useful Links
 http://www.electronics-tutorials.ws/accircuits/average-voltage.html
